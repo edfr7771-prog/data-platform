@@ -1,0 +1,67 @@
+# فحص آلي على كل Pull Request وعلى main. لا أسرار مطلوبة: القاعدة حاوية مؤقتة وكل القيم أدناه وهمية للاختبار فقط.
+# ملاحظة صريحة: كُتب هذا الملف في Phase 0R **ولم يُشغَّل على GitHub بعد**. إصدارات الإجراءات (v6) مأخوذة من تنظيف CI في مستودع «تم الآن» (#6) وتُراجَع عند أول تشغيل.
+# الأوامر نفسها شُغّلت يدويًا على الحزمة (docs/phase0r/test-logs).
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run typecheck
+      - run: npm run test:unit
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: redata
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U ci -d redata" --health-interval=5s --health-timeout=5s --health-retries=12
+    env:
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/redata
+      TEST_APP_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      APP_SECRET: ci-only-not-a-secret-0123456789abcdef0123456789abcdef
+      OTP_DEV_SHOW: 'true'
+      OTP_EMAIL_DELIVERY: console
+      OTP_SMS_DELIVERY: console
+      ADMIN_IDENTIFIERS: admin@test.local
+      MAX_IMPORT_MB: '5'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run migrate
+      - run: npm run build
+      - name: تشغيل الخادم
+        run: |
+          nohup npm start > server.log 2>&1 &
+          for i in $(seq 1 40); do curl -sf http://localhost:3000/api/health >/dev/null && exit 0; sleep 2; done
+          echo "الخادم لم يبدأ"; cat server.log; exit 1
+      - run: npm run test:integration
+      - if: failure()
+        run: tail -n 80 server.log || true

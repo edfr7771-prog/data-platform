@@ -1,0 +1,14 @@
+import { ACTIONS, can, ORG_ROLES, type Role } from '../src/lib/rbac';
+let pass = 0, fail = 0;
+const check = (name: string, cond: boolean) => { cond ? pass++ : fail++; console.log(cond ? '  ✓' : '  ✗', name); };
+console.log('مصفوفة الصلاحيات (تُفرض في الخلفية)');
+check('مدير المؤسسة يملك كل الإجراءات', ACTIONS.every((a) => can('org_admin', a)));
+check('محلل البيانات: قراءة وكتابة وحذف وتصدير واستيراد، لا تدقيق ولا إدارة', can('data_analyst', 'property:delete') && can('data_analyst', 'import:run') && can('data_analyst', 'property:export') && !can('data_analyst', 'audit:read') && !can('data_analyst', 'org:manage'));
+check('الوسيط والموظف: قراءة وكتابة فقط', ['broker', 'employee'].every((r) => can(r as Role, 'property:read') && can(r as Role, 'property:write') && !can(r as Role, 'property:delete') && !can(r as Role, 'import:run') && !can(r as Role, 'property:export')));
+check('المستثمر والمطّلع: قراءة فقط', ['investor', 'viewer'].every((r) => can(r as Role, 'property:read') && ACTIONS.filter((a) => a !== 'property:read').every((a) => !can(r as Role, a))));
+check('الطالب لا يملك أي صلاحية على بيانات المؤسسة', ACTIONS.every((a) => !can('student', a)));
+check('مدير المنصة لا يملك وصولًا تلقائيًا لبيانات المؤسسات', ACTIONS.every((a) => !can('super_admin', a)));
+check('بلا دور = لا صلاحية', ACTIONS.every((a) => !can(null, a) && !can(undefined, a)));
+check('كل أدوار المؤسسة السبعة معرّفة بلا مدير المنصة', ORG_ROLES.length === 7 && !ORG_ROLES.includes('super_admin'));
+console.log(`\nالنتيجة: ${pass} نجح، ${fail} فشل`);
+process.exit(fail ? 1 : 0);

@@ -1,0 +1,50 @@
+
+> re-data-platform@0.1.0 start
+> next start -p 3000
+
+▲ Next.js 16.3.8
+- Local:         http://localhost:3000
+- Network:       http://192.0.2.2:3000
+✓ Ready in 132ms
+✓ Running next.config.ts took 29ms
+[OTP:email] a-murgkmcg@test.local → ******
+[OTP:sms] +966545503436 → ******
+[OTP:email] b-murgkmcg@test.local → ******
+[OTP:sms] +966545503437 → ******
+[OTP:email] t1-murgkmcg@test.local → ******
+[OTP:email] t2-murgkmcg@test.local → ******
+[OTP:email] t3-murgkmcg@test.local → ******
+[OTP:sms] +966545503438 → ******
+[OTP:sms] +966545503439 → ******
+[OTP:sms] +966545503440 → ******
+[OTP:email] t2-murgkmcg@test.local → ******
+[OTP:sms] +966545503439 → ******
+[OTP:email] x-murgkmcg@test.local → ******
+[OTP:email] x-murgkmcg@test.local → ******
+[OTP:sms] +966545503443 → ******
+[OTP:email] b-murgkmcg@test.local → ******
+[OTP:email] lim-murgkmcg@test.local → ******
+[OTP:sms] +966545503445 → ******
+[OTP:email] lim-murgkmcg@test.local → ******
+[OTP:email] lim-murgkmcg@test.local → ******
+[OTP:email] guess-murgkmcg@test.local → ******
+[OTP:sms] +966545503466 → ******
+[OTP:email] guess-murgkmcg@test.local → ******
+[OTP:email] admin@test.local → ******
+[OTP:sms] +966545503467 → ******
+[OTP:email] viewer-murgkmcg@test.local → ******
+[OTP:email] broker-murgkmcg@test.local → ******
+[OTP:email] student-murgkmcg@test.local → ******
+[OTP:email] analyst-murgkmcg@test.local → ******
+[OTP:email] investor-murgkmcg@test.local → ******
+[OTP:sms] +966545503471 → ******
+[OTP:sms] +966545503468 → ******
+[OTP:sms] +966545503470 → ******
+[OTP:sms] +966545503469 → ******
+[OTP:sms] +966545503472 → ******
+[OTP:email] qa-murgkz88146@test.local → ******
+[OTP:sms] +966515955723 → ******
+[OTP:email] qa-murgkzve35@test.local → ******
+[OTP:email] ui-murgmt0h@test.local → ******
+[OTP:sms] +966569681593 → ******
+[OTP:email] ui-murgmt0h@test.local → ******

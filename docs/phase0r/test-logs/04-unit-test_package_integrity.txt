@@ -1,0 +1,36 @@
+ملف نموذج البيئة (.env.example)
+  ✓ .env.example موجود وغير فارغ (المواصفة تشترطه والـREADME يطلب نسخه) 
+  ✓ يحوي كل المتغيرات اللازمة 
+  ✓ الأسرار فارغة (APP_SECRET, SMTP_USER, SMTP_PASS, SMS_WEBHOOK_TOKEN, SMS_WEBHOOK_URL, SMTP_HOST, SMTP_FROM) 
+  ✓ الافتراضي الآمن: عرض الرمز مغلق (OTP_DEV_SHOW=false) والتسليم محلي console 
+  ✓ DATABASE_URL قالب بلا بيانات اعتماد حقيقية (USER:PASSWORD) 
+  ✓ .gitignore يمنع .env الحقيقي ويُبقي .env.example 
+  ✓ README يشير إلى .env.example 
+مصدر الملفات المنقولة من «تم الآن» (الخيار أ: سبعة ملفات فقط)
+  ✓ سجل المصدر يحوي سبعة ملفات بالضبط (لا أكثر) 
+  ✓ src/lib/identifiers.ts: مطابق لبصمته المسجَّلة 
+  ✓ src/lib/identifiers.ts: سُجّل مطابقًا للمصدر (بصمة المصدر = بصمته هنا) 
+  ✓ src/lib/otp-policy.ts: مطابق لبصمته المسجَّلة 
+  ✓ src/lib/otp-policy.ts: سُجّل مطابقًا للمصدر (بصمة المصدر = بصمته هنا) 
+  ✓ src/lib/contact-policy.ts: مطابق لبصمته المسجَّلة 
+  ✓ src/lib/contact-policy.ts: سُجّل مطابقًا للمصدر (بصمة المصدر = بصمته هنا) 
+  ✓ scripts/test_otp_policy.ts: مطابق لبصمته المسجَّلة 
+  ✓ scripts/test_otp_policy.ts: سُجّل مطابقًا للمصدر (بصمة المصدر = بصمته هنا) 
+  ✓ scripts/migrate.mjs: مطابق لبصمته المسجَّلة 
+  ✓ scripts/migrate.mjs: سُجّل مطابقًا للمصدر (بصمة المصدر = بصمته هنا) 
+  ✓ src/app/fonts/plex-arabic-400.woff2: مطابق لبصمته المسجَّلة 
+  ✓ src/app/fonts/plex-arabic-400.woff2: سُجّل مطابقًا للمصدر (بصمة المصدر = بصمته هنا) 
+  ✓ src/app/fonts/plex-arabic-600.woff2: مطابق لبصمته المسجَّلة 
+  ✓ src/app/fonts/plex-arabic-600.woff2: سُجّل مطابقًا للمصدر (بصمة المصدر = بصمته هنا) 
+  ✓ لا أثر لمجلدات منصة «تم الآن» غير المعتمدة (crm, matching, academy, market, marketing) 
+  ✓ الملفات المعتمدة موجودة كلها 
+حزمة Phase 0R
+  ✓ docs/phase0r/PROVENANCE.md موجود 
+  ✓ docs/phase0r/EXISTING-SYSTEM-AUDIT.md موجود 
+  ✓ docs/phase0r/BRAND-NAMING-AUDIT.md موجود 
+  ✓ docs/phase0r/provenance.json موجود 
+  ✓ ملف GitHub Actions موجود (.github/workflows/ci.yml) 
+  ✓ ملف CI يشغّل الفحوص الأساسية (audit وtypecheck وtest:unit وmigrate وbuild وtest:integration) 
+
+النتيجة: 30 نجح، 0 فشل
+EXIT=0

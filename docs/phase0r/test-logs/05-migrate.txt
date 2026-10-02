@@ -1,0 +1,6 @@
+
+> re-data-platform@0.1.0 migrate
+> node scripts/migrate.mjs
+
+✔ تم تطبيق: 001_schema.sql
+EXIT=0

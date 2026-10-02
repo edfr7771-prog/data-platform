@@ -1,0 +1,11 @@
+✓ ar light 360 /complete 
+✓ ar light 390 /complete 
+✓ ar light 430 /complete 
+✓ ar light 600 /complete 
+✓ ar light 768 /complete 
+✓ ar light 1024 /complete 
+✓ ar light 1366 /complete 
+✓ ar light 1920 /complete 
+
+النتيجة: 8 نجح، 0 فشل
+EXIT=0
