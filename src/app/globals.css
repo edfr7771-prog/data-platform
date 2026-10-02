@@ -58,3 +58,21 @@ th{background:#EEF3F9;font-weight:600;white-space:nowrap}
 footer.site{background:var(--navy);color:#B7C7DD;padding:32px 0;font-size:14.5px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* Phase 2: نموذج الإدخال المنظم */
+.steps{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted)}
+.steps li::before{counter-increment:s;content:counter(s);display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;border:1.5px solid #8FA3C0;font-weight:600}
+.steps li[aria-current=step]{color:var(--ink);font-weight:600}
+.steps li[aria-current=step]::before{background:var(--navy2);border-color:var(--navy2);color:#fff}
+.steps li.done::before{background:#EEF9F4;border-color:#9AD3BB;color:var(--green)}
+fieldset.fs{border:0;margin:0;padding:0;min-width:0}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg label{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1.5px solid #8FA3C0;border-radius:var(--radius);cursor:pointer;background:#fff}
+.seg label:has(input:checked){border-color:var(--navy2);box-shadow:inset 0 0 0 1px var(--navy2);font-weight:600}
+.seg input{accent-color:var(--navy2);width:18px;height:18px}
+.input[aria-invalid=true]{border-color:var(--red)}
+.ferr{color:var(--red);font-size:14px}
+.preview{border:1px solid var(--line);border-radius:var(--radius);padding:18px;background:#FBFCFE}
+.preview h3{font-size:19px;margin-bottom:10px}
+.preview h4{font-size:16px;margin:14px 0 4px}
+.preview ul{margin:0;padding-inline-start:20px}

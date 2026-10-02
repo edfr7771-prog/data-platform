@@ -4,7 +4,7 @@ import { levenshtein, normalizeArabic, parseNumber } from './arabic';
 
 export const TYPES = ['villa', 'apartment', 'land', 'building', 'commercial', 'floor', 'office', 'shop', 'warehouse', 'farm', 'other'] as const;
 export type PType = (typeof TYPES)[number];
-export type Deal = 'sale' | 'rent';
+export type Deal = 'sale' | 'rent' | 'investment';
 export type Usage = 'residential' | 'commercial';
 export type PStatus = 'active' | 'sold' | 'rented' | 'withdrawn';
 export type Issue = { code: string; field?: string; message: string };
@@ -29,7 +29,7 @@ const TYPE_MAP = syn<PType>([
   ['floor', ['دور', 'floor', 'طابق']], ['office', ['مكتب', 'office']], ['shop', ['محل', 'shop', 'دكان']],
   ['warehouse', ['مستودع', 'warehouse', 'مخزن']], ['farm', ['مزرعة', 'مزرعه', 'farm', 'استراحة']], ['other', ['اخرى', 'other', 'غير ذلك']],
 ]);
-const DEAL_MAP = syn<Deal>([['sale', ['بيع', 'للبيع', 'sale', 'sell', 'تمليك']], ['rent', ['ايجار', 'للايجار', 'rent', 'lease', 'تاجير', 'للتاجير']]]);
+const DEAL_MAP = syn<Deal>([['sale', ['بيع', 'للبيع', 'sale', 'sell', 'تمليك']], ['rent', ['ايجار', 'للايجار', 'rent', 'lease', 'تاجير', 'للتاجير']], ['investment', ['استثمار', 'للاستثمار', 'investment']]]);
 const USAGE_MAP = syn<Usage>([['residential', ['سكني', 'سكنى', 'residential']], ['commercial', ['تجاري', 'تجارى', 'commercial']]]);
 const STATUS_MAP = syn<PStatus>([['active', ['متاح', 'نشط', 'active', 'available']], ['sold', ['مباع', 'sold']], ['rented', ['مؤجر', 'rented']], ['withdrawn', ['مسحوب', 'withdrawn', 'ملغي']]]);
 
@@ -85,7 +85,7 @@ export function cleanProperty(raw: Record<string, unknown>, geo: Geo): { value: 
   const err = (code: string, field: string, message: string) => errors.push({ code, field, message });
 
   const type = parseType(s('type')); if (!type) err('type_invalid', 'type', 'نوع العقار غير معروف');
-  const deal = parseDeal(s('deal')); if (!deal) err('deal_invalid', 'deal', 'نوع العرض (بيع/إيجار) غير معروف');
+  const deal = parseDeal(s('deal')); if (!deal) err('deal_invalid', 'deal', 'نوع العرض (بيع/إيجار/استثمار) غير معروف');
 
   const num = (k: string): number | null => {
     const v = parseNumber(raw[k]);
@@ -96,7 +96,7 @@ export function cleanProperty(raw: Record<string, unknown>, geo: Geo): { value: 
   if (area === null || area <= 0 || area > 10_000_000) err('area_invalid', 'area_sqm', 'المساحة غير صحيحة');
   const price = num('price');
   if (price === null || price < 0 || price > 1e11) err('price_invalid', 'price', 'السعر غير صحيح');
-  else if (deal === 'sale' && price === 0) err('price_invalid', 'price', 'سعر البيع لا يكون صفرًا');
+  else if ((deal === 'sale' || deal === 'investment') && price === 0) err('price_invalid', 'price', 'سعر البيع أو الاستثمار لا يكون صفرًا');
 
   const intField = (k: string, min: number, max: number, label: string): number | null => {
     if (!s(k)) return null;
@@ -128,7 +128,7 @@ export function cleanProperty(raw: Record<string, unknown>, geo: Geo): { value: 
   if (errors.length || !type || !deal || area === null || price === null) return { value: null, errors, warnings, fixes };
 
   const ppm = pricePerSqm(price, area)!;
-  if (deal === 'sale' && (ppm < 100 || ppm > 150_000)) warnings.push({ code: 'ppm_out_of_range', field: 'price', message: `سعر المتر ${Math.round(ppm).toLocaleString('en-US')} خارج النطاق المعقول، يحتاج مراجعة` });
+  if (deal !== 'rent' && (ppm < 100 || ppm > 150_000)) warnings.push({ code: 'ppm_out_of_range', field: 'price', message: `سعر المتر ${Math.round(ppm).toLocaleString('en-US')} خارج النطاق المعقول، يحتاج مراجعة` });
   if (deal === 'rent' && (ppm < 1 || ppm > 20_000)) warnings.push({ code: 'ppm_out_of_range', field: 'price', message: `سعر المتر للإيجار ${Math.round(ppm).toLocaleString('en-US')} خارج النطاق المعقول، يحتاج مراجعة` });
 
   return {
