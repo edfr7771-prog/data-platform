@@ -1,0 +1,60 @@
+isLocalAppUrl
+  ✓ محلي: http://localhost:3000 
+  ✓ محلي: http://127.0.0.1:3000 
+  ✓ محلي: http://[::1]:3000 
+  ✓ محلي: https://localhost 
+  ✓ محلي: HTTP://LOCALHOST:3000 
+  ✓ محلي: http://localhost 
+  ✓ ليس محليًا: https://tamaalann.com.sa 
+  ✓ ليس محليًا: https://www.tamaalann.com.sa 
+  ✓ ليس محليًا: https://tamaalann.com 
+  ✓ ليس محليًا: http://localhost.evil.com 
+  ✓ ليس محليًا: http://127.0.0.1.nip.io 
+  ✓ ليس محليًا: http://localhost@evil.com 
+  ✓ ليس محليًا: http://user:pw@localhost 
+  ✓ ليس محليًا: http://evil.com/localhost 
+  ✓ ليس محليًا: http://evil.com?u=http://localhost 
+  ✓ ليس محليًا: https://192.168.1.10 
+  ✓ ليس محليًا: http://0.0.0.0:3000 
+  ✓ ليس محليًا: http://localhost. 
+  ✓ ليس محليًا: ftp://localhost 
+  ✓ ليس محليًا: javascript:localhost 
+  ✓ ليس محليًا: localhost:3000 
+  ✓ ليس محليًا:  
+  ✓ ليس محليًا: undefined 
+  ✓ ليس محليًا: null 
+  ✓ ليس محليًا: not a url 
+otpDevDisplayAllowed: الحالة الحاسمة
+  ✓ رابط عام + OTP_DEV_SHOW=true ← لا يظهر الرمز 
+  ✓ رابط عام + OTP_DEV_SHOW=true (وضع تطوير) ← لا يظهر الرمز 
+  ✓ رابط خادع (localhost.evil.com) + OTP_DEV_SHOW=true ← لا يظهر 
+  ✓ محلي + OTP_DEV_SHOW=true ← يظهر (التطوير وCI) 
+  ✓ محلي + بلا OTP_DEV_SHOW ← لا يظهر 
+  ✓ محلي + OTP_DEV_SHOW=false ← لا يظهر (لا يُقبل إلا «true» حرفيًا) 
+  ✓ محلي + OTP_DEV_SHOW=1 ← لا يظهر (لا يُقبل إلا «true» حرفيًا) 
+  ✓ محلي + OTP_DEV_SHOW=TRUE ← لا يظهر (لا يُقبل إلا «true» حرفيًا) 
+  ✓ محلي + OTP_DEV_SHOW=yes ← لا يظهر (لا يُقبل إلا «true» حرفيًا) 
+  ✓ محلي + OTP_DEV_SHOW= ← لا يظهر (لا يُقبل إلا «true» حرفيًا) 
+  ✓ محلي + OTP_DEV_SHOW=undefined ← لا يظهر (لا يُقبل إلا «true» حرفيًا) 
+otpConsoleFallbackAllowed: طباعة الرمز في سجل الخادم
+  ✓ رابط عام + إنتاج + OTP_DEV_SHOW=true ← لا طباعة 
+  ✓ رابط عام + تطوير ← لا طباعة 
+  ✓ محلي + إنتاج بلا OTP_DEV_SHOW ← لا طباعة (كما كان) 
+  ✓ محلي + إنتاج + OTP_DEV_SHOW=true ← طباعة (CI) 
+  ✓ محلي + تطوير ← طباعة (مطوّر) 
+isLoopbackIp: عناوين لا تُحتسب حدًّا على العنوان
+  ✓ loopback: ::1 
+  ✓ loopback: 127.0.0.1 
+  ✓ loopback: 127.5.5.5 
+  ✓ loopback: ::ffff:127.0.0.1 
+  ✓ loopback: 0.0.0.0 
+  ✓ loopback: :: 
+  ✓ ليس loopback: 203.0.113.9 
+  ✓ ليس loopback: 198.51.100.7 
+  ✓ ليس loopback: 2001:db8::1 
+  ✓ ليس loopback: 10.0.0.5 
+  ✓ ليس loopback: 128.0.0.1 
+  ✓ ليس loopback: 1.127.0.1 
+
+النتيجة: 53 نجح، 0 فشل
+EXIT=0

@@ -1,0 +1,35 @@
+✓ ar light 360 /app 
+✓ ar light 360 /app/properties 
+✓ ar light 360 /app/imports 
+✓ ar light 360 /app/audit 
+✓ ar light 390 /app 
+✓ ar light 390 /app/properties 
+✓ ar light 390 /app/imports 
+✓ ar light 390 /app/audit 
+✓ ar light 430 /app 
+✓ ar light 430 /app/properties 
+✓ ar light 430 /app/imports 
+✓ ar light 430 /app/audit 
+✓ ar light 600 /app 
+✓ ar light 600 /app/properties 
+✓ ar light 600 /app/imports 
+✓ ar light 600 /app/audit 
+✓ ar light 768 /app 
+✓ ar light 768 /app/properties 
+✓ ar light 768 /app/imports 
+✓ ar light 768 /app/audit 
+✓ ar light 1024 /app 
+✓ ar light 1024 /app/properties 
+✓ ar light 1024 /app/imports 
+✓ ar light 1024 /app/audit 
+✓ ar light 1366 /app 
+✓ ar light 1366 /app/properties 
+✓ ar light 1366 /app/imports 
+✓ ar light 1366 /app/audit 
+✓ ar light 1920 /app 
+✓ ar light 1920 /app/properties 
+✓ ar light 1920 /app/imports 
+✓ ar light 1920 /app/audit 
+
+النتيجة: 32 نجح، 0 فشل
+EXIT=0

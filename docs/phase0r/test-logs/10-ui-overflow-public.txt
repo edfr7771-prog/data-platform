@@ -1,0 +1,27 @@
+✓ ar light 360 / 
+✓ ar light 360 /login 
+✓ ar light 360 /register 
+✓ ar light 390 / 
+✓ ar light 390 /login 
+✓ ar light 390 /register 
+✓ ar light 430 / 
+✓ ar light 430 /login 
+✓ ar light 430 /register 
+✓ ar light 600 / 
+✓ ar light 600 /login 
+✓ ar light 600 /register 
+✓ ar light 768 / 
+✓ ar light 768 /login 
+✓ ar light 768 /register 
+✓ ar light 1024 / 
+✓ ar light 1024 /login 
+✓ ar light 1024 /register 
+✓ ar light 1366 / 
+✓ ar light 1366 /login 
+✓ ar light 1366 /register 
+✓ ar light 1920 / 
+✓ ar light 1920 /login 
+✓ ar light 1920 /register 
+
+النتيجة: 24 نجح، 0 فشل
+EXIT=0

@@ -1,0 +1,1 @@
+{"ok":true,"db":"up","app_url":"http://localhost:3000","otp_dev_display":true,"registration_open":true}

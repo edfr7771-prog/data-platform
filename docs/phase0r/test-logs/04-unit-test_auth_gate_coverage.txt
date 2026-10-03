@@ -1,0 +1,81 @@
+معالجات المسارات (src/app/api)
+  ✓ وُجد 13 معالج مسار 
+  ✓ app/api/audit/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/audit/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/auth/complete/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/auth/complete/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/auth/complete/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/auth/logout/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/auth/logout/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/auth/logout/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/auth/me/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/auth/me/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/auth/me/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/auth/otp/start/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/auth/otp/start/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/auth/otp/start/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/auth/otp/verify/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/auth/otp/verify/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/auth/otp/verify/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/health/route.ts عام بلا جلسة (مُعلَن) 
+  ✓ app/api/imports/[id]/approve/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/imports/[id]/approve/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/imports/[id]/approve/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/imports/[id]/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/imports/[id]/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/imports/[id]/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/imports/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/imports/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/imports/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/properties/[id]/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/properties/[id]/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/properties/[id]/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/properties/export/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/properties/export/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/properties/export/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+  ✓ app/api/properties/route.ts يمر بأحد الحراس (guard / guardSession / guardPublic) 
+  ✓ app/api/properties/route.ts لا يستعمل getCurrentUser مباشرة 
+  ✓ app/api/properties/route.ts لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة) 
+الصفحات المحمية (src/app/app)
+  ✓ وُجدت 5 صفحة/تخطيط محمي 
+  ✓ app/app/audit/page.tsx يستدعي requireUser 
+  ✓ app/app/imports/page.tsx يستدعي requireUser 
+  ✓ app/app/layout.tsx يستدعي requireUser 
+  ✓ app/app/page.tsx يستدعي requireUser 
+  ✓ app/app/properties/page.tsx يستدعي requireUser 
+بقية الملفات
+  ✓ app/app/audit/page.tsx لا يستعمل getCurrentUser 
+  ✓ app/app/imports/page.tsx لا يستعمل getCurrentUser 
+  ✓ app/app/layout.tsx لا يستعمل getCurrentUser 
+  ✓ app/app/page.tsx لا يستعمل getCurrentUser 
+  ✓ app/app/properties/page.tsx لا يستعمل getCurrentUser 
+  ✓ app/complete/page.tsx لا يستعمل getCurrentUser 
+  ✓ app/layout.tsx لا يستعمل getCurrentUser 
+  ✓ app/login/page.tsx لا يستعمل getCurrentUser 
+  ✓ app/page.tsx لا يستعمل getCurrentUser 
+  ✓ app/register/page.tsx لا يستعمل getCurrentUser 
+  ✓ components/AppNav.tsx لا يستعمل getCurrentUser 
+  ✓ components/AuthForms.tsx لا يستعمل getCurrentUser 
+  ✓ components/Brand.tsx لا يستعمل getCurrentUser 
+  ✓ components/ImportWizard.tsx لا يستعمل getCurrentUser 
+  ✓ components/PropertiesManager.tsx لا يستعمل getCurrentUser 
+  ✓ components/labels.ts لا يستعمل getCurrentUser 
+  ✓ lib/arabic.ts لا يستعمل getCurrentUser 
+  ✓ lib/audit.ts لا يستعمل getCurrentUser 
+  ✓ lib/contact-policy.ts لا يستعمل getCurrentUser 
+  ✓ lib/csv-export.ts لا يستعمل getCurrentUser 
+  ✓ lib/csv-rules.ts لا يستعمل getCurrentUser 
+  ✓ lib/db.ts لا يستعمل getCurrentUser 
+  ✓ lib/env.ts لا يستعمل getCurrentUser 
+  ✓ lib/identifiers.ts لا يستعمل getCurrentUser 
+  ✓ lib/imports.ts لا يستعمل getCurrentUser 
+  ✓ lib/otp-delivery.ts لا يستعمل getCurrentUser 
+  ✓ lib/otp-policy.ts لا يستعمل getCurrentUser 
+  ✓ lib/properties.ts لا يستعمل getCurrentUser 
+  ✓ lib/property-rules.ts لا يستعمل getCurrentUser 
+  ✓ lib/rbac.ts لا يستعمل getCurrentUser 
+  ✓ الكود لا يحوي نطاقًا ثابتًا (APP_URL من البيئة فقط) 
+  ✓ لا أسرار ظاهرة في الكود 
+
+النتيجة: 75 نجح، 0 فشل
+EXIT=0

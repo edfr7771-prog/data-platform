@@ -1,0 +1,75 @@
+{
+ "approved": "الخيار (أ): اعتماد كتابي لهذه الملفات السبعة فقط",
+ "approved_on": "2026-10-03",
+ "source": {
+  "repo": "منصة «تم الآن» (نسخة محلية في بيئة Claude، غير مدموجة)",
+  "branch": "claude/pr2-verified-contacts-v2",
+  "head": "0907effb76f6c924955a395f50a8ad9529888fc4",
+  "merged_base": "1359819c506f3a0d6b2bfb41523415e22d8dd474"
+ },
+ "files": [
+  {
+   "file": "src/lib/identifiers.ts",
+   "source_path": "src/lib/identifiers.ts",
+   "sha256": "12c668d396e495dadc6d8f5b76c1ef2a8aabbed042f948ee7adacd7278c445d1",
+   "sha256_source": "12c668d396e495dadc6d8f5b76c1ef2a8aabbed042f948ee7adacd7278c445d1",
+   "git_blob_source": "bbd7da5cf0f9876a47d642b3c3962fba08fedd16",
+   "identical_to_source": true,
+   "in_merged_base": true
+  },
+  {
+   "file": "src/lib/otp-policy.ts",
+   "source_path": "src/lib/otp-policy.ts",
+   "sha256": "43c76671108938197c1e2e888d7a8d5ca217c69498619fcd31e1dcf172aa6028",
+   "sha256_source": "43c76671108938197c1e2e888d7a8d5ca217c69498619fcd31e1dcf172aa6028",
+   "git_blob_source": "196aaf5a42327b934088b86591f49cba30843f9a",
+   "identical_to_source": true,
+   "in_merged_base": false
+  },
+  {
+   "file": "src/lib/contact-policy.ts",
+   "source_path": "src/lib/contact-policy.ts",
+   "sha256": "6e7350ae54e3ca6cff36ce9cc19b2aa665ed0907488a65d4d04868c0336f2d94",
+   "sha256_source": "6e7350ae54e3ca6cff36ce9cc19b2aa665ed0907488a65d4d04868c0336f2d94",
+   "git_blob_source": "1a1b23705cb735caf830c34ee692e27a3b133f67",
+   "identical_to_source": true,
+   "in_merged_base": false
+  },
+  {
+   "file": "scripts/test_otp_policy.ts",
+   "source_path": "scripts/test_otp_policy.ts",
+   "sha256": "220433d6a043d1e248cc4e9c3dc64dc42f79e8cffc6b510342fe456279eac8a3",
+   "sha256_source": "220433d6a043d1e248cc4e9c3dc64dc42f79e8cffc6b510342fe456279eac8a3",
+   "git_blob_source": "309d4d98b276b0183fdcd8e09a314c61e5d8cb44",
+   "identical_to_source": true,
+   "in_merged_base": false
+  },
+  {
+   "file": "scripts/migrate.mjs",
+   "source_path": "scripts/migrate.mjs",
+   "sha256": "8c01fee408ac11eff34fabbe05d13727faac212de7639013230240b9ad660217",
+   "sha256_source": "8c01fee408ac11eff34fabbe05d13727faac212de7639013230240b9ad660217",
+   "git_blob_source": "fb1f1c4a3cdc37ed53280e115726b1fa9fffc9e6",
+   "identical_to_source": true,
+   "in_merged_base": true
+  },
+  {
+   "file": "src/app/fonts/plex-arabic-400.woff2",
+   "source_path": "src/app/fonts/plex-arabic-400.woff2",
+   "sha256": "6010e7fd0dce5d527583951750728cbe3c895efbd16aa0f809ab8c824878c9d8",
+   "sha256_source": "6010e7fd0dce5d527583951750728cbe3c895efbd16aa0f809ab8c824878c9d8",
+   "git_blob_source": "e9f0f1ab4bc6cb30e94b3d2cff941491467a90de",
+   "identical_to_source": true,
+   "in_merged_base": true
+  },
+  {
+   "file": "src/app/fonts/plex-arabic-600.woff2",
+   "source_path": "src/app/fonts/plex-arabic-600.woff2",
+   "sha256": "16734a5adb27b0f363e566cbbeacec480da0dc0baa19c8f0053251c2e2bc0eac",
+   "sha256_source": "16734a5adb27b0f363e566cbbeacec480da0dc0baa19c8f0053251c2e2bc0eac",
+   "git_blob_source": "e5865101cccc0ba06d1fd025ed94b8d9e6ff5b8c",
+   "identical_to_source": true,
+   "in_merged_base": true
+  }
+ ]
+}
