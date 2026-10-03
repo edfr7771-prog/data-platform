@@ -346,6 +346,91 @@ async function main() {
   const idx2 = (await sql<{ indexname: string }>(`SELECT indexname FROM pg_indexes WHERE tablename IN ('properties','property_drafts')`)).map((r) => r.indexname);
   check('فهارس النوع التفصيلي والبيانات المنظمة والمسودات موجودة', ['properties_kind_idx', 'properties_attributes_idx', 'property_drafts_owner_idx'].every((n) => idx2.includes(n)));
 
+  section('12ج) Phase 2: الطلبات المنظمة والمطابقة والذكاء السعري والخريطة والمقارنة (مؤسسة جديدة ببيانات معروفة)');
+  const M = await register('mkt'); const orgM = await orgOf(M);
+  const fu = await val(`SELECT id FROM districts WHERE slug='al-furusiyyah'`) as string, sa = await val(`SELECT id FROM districts WHERE slug='al-safa'`) as string, jd = await val(`SELECT id FROM cities WHERE slug='jeddah'`) as string;
+  const mk = async (o: Record<string, unknown>) => { const r = await M.c.post('/api/properties', { city_id: jd, deal: 'sale', kind: 'villa', district_id: fu, ...o }); if (r.status !== 201) throw new Error('offer failed ' + JSON.stringify(r.data)); return r.data.property.id as string; };
+  const v1 = await mk({ area_sqm: 300, price: 2_000_000, lat: 21.601, lng: 39.121, attributes: { bedrooms: 5, bathrooms: 5, pool: true, ac_type: 'central', finishing: 'super_deluxe', features: ['smart_home', 'cctv'] } });
+  const v2 = await mk({ area_sqm: 320, price: 2_400_000, lat: 21.603, lng: 39.124, attributes: { bedrooms: 4, bathrooms: 4, pool: false, ac_type: 'split' } });
+  const v3 = await mk({ area_sqm: 280, price: 1_800_000, lat: 21.599, lng: 39.118, attributes: { bedrooms: 3, bathrooms: 3, pool: true } });
+  const v4 = await mk({ area_sqm: 400, price: 3_000_000, lat: 21.605, lng: 39.126, attributes: { bedrooms: 6, bathrooms: 6, pool: true, ac_type: 'central' } });
+  const vn = await mk({ area_sqm: 310, price: 2_100_000, lat: 21.602, lng: 39.122, notes: 'فيلا فيها مسبح كبير وتكييف مركزي', attributes: { bedrooms: 5, bathrooms: 5 } });
+  const vs = await mk({ district_id: sa, area_sqm: 350, price: 2_200_000, lat: 21.585, lng: 39.205, attributes: { bedrooms: 4, bathrooms: 4, ac_type: 'central' } });
+  const legacy = (await M.c.post('/api/properties', prop({ external_ref: 'M-LEG' }))).data.property.id as string; // فيلا قديمة بلا kind ولا إحداثيات في الفروسية (غرف 5، 1,450,000)
+  const a1 = await mk({ deal: 'rent', kind: 'apartment', district_id: sa, area_sqm: 120, price: 45_000, rent_period: 'yearly', lat: 21.586, lng: 39.207, attributes: { floor_number: 2, bedrooms: 3, bathrooms: 2, furnished: 'unfurnished' } });
+  const a2 = await mk({ deal: 'rent', kind: 'apartment', district_id: sa, area_sqm: 130, price: 4_000, rent_period: 'monthly', lat: 21.587, lng: 39.208, attributes: { floor_number: 1, bedrooms: 3, bathrooms: 2, furnished: 'furnished' } });
+  const a3 = await mk({ deal: 'rent', kind: 'apartment', district_id: sa, area_sqm: 150, price: 60_000, rent_period: 'yearly', lat: 21.584, lng: 39.206, attributes: { floor_number: 3, bedrooms: 4, bathrooms: 3, furnished: 'unfurnished' } });
+  const ht = await mk({ deal: 'investment', kind: 'hotel', area_sqm: 2000, price: 30_000_000, lat: 21.604, lng: 39.125, attributes: { rooms_count: 90, ac_type: 'central', finishing: 'deluxe', annual_income: 4_200_000 } });
+  check('عرض بالمواصفات التفصيلية: التكييف والتشطيب والمزايا محفوظة بمفاتيحها ومذكورة في الوصف', (await M.c.get(`/api/properties/${v1}`)).data.property.attributes.finishing === 'super_deluxe' && (await M.c.get(`/api/properties/${v1}`)).data.property.description.includes('المزايا: منزل ذكي، كاميرات مراقبة'));
+  check('«عرض استثماري» يُقبل اسمًا عربيًا للعملية', (await M.c.post('/api/properties/preview', { city_id: jd, district_id: fu, deal: 'عرض استثماري', kind: 'shop', area_sqm: 80, price: 900000 })).data.description?.title === 'محل للاستثمار في حي الفروسية، جدة');
+
+  const r1In = { purpose: 'buy', kinds: ['villa', 'duplex'], city_id: jd, district_ids: [fu, sa], district_importance: 'must', budget_max: 2_500_000, notes: 'أفضّل قرب مسجد',
+    criteria: { bedrooms: { value: 4, importance: 'must' }, pool: { value: true, importance: 'preferred' }, ac_type: { value: ['central'], importance: 'preferred' }, finishing: { value: 'deluxe', importance: 'any' } } };
+  const rpv = await M.c.post('/api/requests/preview', r1In);
+  check('معاينة الطلب: وصف مرتب بالأحياء والشروط، بلا «لا يهم» وبلا الملاحظات', rpv.status === 200 && rpv.data.description.title === 'مطلوب فيلا أو دوبلكس للشراء في حي الفروسية أو حي الصفا، جدة' && rpv.data.description.text.includes('غرف النوم: 4 على الأقل') && !rpv.data.description.text.includes('التشطيب') && !rpv.data.description.text.includes('مسجد'), rpv.data);
+  const r1 = await M.c.post('/api/requests', r1In);
+  const r1id = r1.data.request?.id as string;
+  check('حفظ طلب منظم = 201 وشروطه بقيم موحدة، والملاحظات منفصلة', r1.status === 201 && r1.data.request.criteria.bedrooms.op === 'min' && r1.data.request.criteria.bedrooms.value === 4 && r1.data.request.notes === 'أفضّل قرب مسجد' && !('finishing' in r1.data.request.criteria), r1.data);
+  check('طلب بلا ميزانية = 400، واستئجار بلا مدة = 400، وحي من مدينة أخرى/مجهول = 400', (await M.c.post('/api/requests', { ...r1In, budget_max: undefined })).status === 400 && (await M.c.post('/api/requests', { ...r1In, purpose: 'rent' })).data.errors?.some((e: any) => e.field === 'rent_period') && (await M.c.post('/api/requests', { ...r1In, district_ids: ['حي غير موجود'] })).status === 400);
+  const m1 = await M.c.get(`/api/requests/${r1id}/matches`);
+  const ids1 = m1.data.matches?.map((x: any) => x.property_id) ?? [];
+  check('المطابقة: الأفضل أولًا (فيلا بكل المفضّلات = 100)', m1.status === 200 && ids1[0] === v1 && m1.data.matches[0].score === 100, m1.data.matches?.map((x: any) => [x.property_id === v1 ? 'v1' : x.property_id, x.score]));
+  check('المطابقة تستبعد: 3 غرف (إلزامي 4)، وفوق الميزانية، وغير الفلل', !ids1.includes(v3) && !ids1.includes(v4) && !ids1.includes(a1) && !ids1.includes(ht) && m1.data.excluded.criterion >= 1 && m1.data.excluded.budget >= 1);
+  check('المطابقة تشمل: مفضّل غير متحقق بدرجة أقل، وحي الصفا، والعرض القديم بغرف عمود Phase 1', ids1.includes(v2) && ids1.includes(vs) && ids1.includes(legacy) && m1.data.matches.find((x: any) => x.property_id === v2).score < 100);
+  check('أسباب الدرجة مفسَّرة لكل شرط (المسبح غير مذكور في عرض ملاحظاته تذكر مسبحًا)', m1.data.matches.find((x: any) => x.property_id === vn)?.reasons.find((r: any) => r.key === 'pool')?.status === 'unknown');
+  check('لقطة المطابقات محفوظة في matches بعدد المؤهل', Number(await val(`SELECT count(*) FROM matches WHERE request_id=$1 AND org_id=$2`, [r1id, orgM])) === m1.data.total_eligible && m1.data.total_eligible === ids1.length);
+  const r2 = await M.c.post('/api/requests', { ...r1In, criteria: { ...r1In.criteria, pool: { value: true, importance: 'must' } } });
+  const ids2 = (await M.c.get(`/api/requests/${r2.data.request.id}/matches`)).data.matches.map((x: any) => x.property_id);
+  check('المسبح إلزامي: النص الحر «فيها مسبح» لا يكفي، والمسبح المنظم يكفي (المطابقة على البيانات المنظمة)', !ids2.includes(vn) && ids2.includes(v1) && !ids2.includes(legacy) && !ids2.includes(v2), ids2.length);
+  const r3 = await M.c.post('/api/requests', { purpose: 'rent', rent_period: 'yearly', kinds: ['apartment'], city_id: jd, district_ids: [sa], budget_max: 50_000, criteria: { bedrooms: { value: 3, importance: 'must' } } });
+  const ids3 = (await M.c.get(`/api/requests/${r3.data.request.id}/matches`)).data.matches.map((x: any) => x.property_id);
+  check('الإيجار يوحَّد سنويًا: 45,000 سنويًا و4,000 شهريًا (48,000) ضمن 50,000، و60,000 خارجها', ids3.includes(a1) && ids3.includes(a2) && !ids3.includes(a3), ids3);
+  const r4 = await M.c.post('/api/requests', { purpose: 'investment', kinds: ['hotel'], city_id: jd, budget_max: 35_000_000, criteria: { rooms_count: { value: 80, importance: 'must' } } });
+  check('طلب استثمار يطابق العرض الاستثماري (فندق 90 غرفة والمطلوب 80)', (await M.c.get(`/api/requests/${r4.data.request.id}/matches`)).data.matches.some((x: any) => x.property_id === ht));
+  const pr = await M.c.patch(`/api/requests/${r1id}`, { criteria: { bedrooms: { value: 5, importance: 'must' } } });
+  check('تعديل شروط الطلب يعيد توليد الوصف ويغيّر المطابقة', pr.status === 200 && pr.data.request.description.includes('غرف النوم: 5 على الأقل') && !(await M.c.get(`/api/requests/${r1id}/matches`)).data.matches.some((x: any) => x.property_id === v2));
+  check('قائمة الطلبات وقراءة طلب', (await M.c.get('/api/requests')).data.items.length === 4 && (await M.c.get(`/api/requests/${r1id}`)).data.request.id === r1id);
+
+  // الذكاء السعري: مطابقة حرفية لحساب PostgreSQL المباشر على البيانات نفسها
+  const pi = await M.c.get('/api/analytics/prices?market=sale&kind=villa');
+  const sqlMed = Number(await val(`SELECT round(percentile_cont(0.5) WITHIN GROUP (ORDER BY price/area_sqm)::numeric, 2) FROM properties WHERE org_id=$1 AND deleted_at IS NULL AND status='active' AND deal IN ('sale','investment') AND district_id=$2 AND (kind='villa' OR (kind IS NULL AND type='villa'))`, [orgM, fu]));
+  const sqlN = Number(await val(`SELECT count(*) FROM properties WHERE org_id=$1 AND deleted_at IS NULL AND status='active' AND deal IN ('sale','investment') AND district_id=$2 AND (kind='villa' OR (kind IS NULL AND type='villa'))`, [orgM, fu]));
+  const fuRow = pi.data.districts?.find((d: any) => d.district_id === fu);
+  check('وسيط سعر المتر للفلل في الفروسية = حساب percentile_cont في القاعدة', pi.status === 200 && fuRow.summary.n === sqlN && sqlN === 6 && fuRow.summary.median === sqlMed, { api: fuRow?.summary, sqlMed, sqlN });
+  const saRow = pi.data.districts.find((d: any) => d.district_id === sa);
+  check('حي بعينة أقل من 3 = بلا وسيط ومعلَّم غير كافٍ (فيلا واحدة في الصفا)', saRow.summary.n === 1 && saRow.summary.median === null && saRow.summary.sufficient === false);
+  const rent = await M.c.get('/api/analytics/prices?market=rent');
+  const rentSa = rent.data.districts.find((d: any) => d.district_id === sa).summary;
+  check('سعر متر الإيجار سنوي (4,000 شهريًا على 130م² = 369.23) والوسيط من 3 شقق', rentSa.n === 3 && rentSa.median === 375 && rentSa.min === 369.23 && rent.data.unit.includes('سنويًا'), rentSa);
+  check('الاتجاه الشهري موجود ومن البيانات', pi.data.trend.length >= 1 && pi.data.trend.at(-1).summary.n === sqlN + 1);
+  const da = await M.c.get('/api/analytics/districts');
+  const daFu = da.data.items.find((d: any) => d.district_id === fu), daSa = da.data.items.find((d: any) => d.district_id === sa);
+  check('تحليلات الأحياء: العروض حسب العملية، والطلبات المفتوحة، ونسبة الطلب للعرض', daFu.offers.sale === 6 && daFu.offers.investment === 1 && daFu.requests === 2 && daSa.offers.rent === 3 && daSa.requests === 3 && daFu.demand_supply === Math.round((2 / 7) * 100) / 100, { daFu, daSa });
+  check('أكثر الأنواع في الحي من البيانات (فيلا أولًا في الفروسية: 5 منظمة + 1 قديمة)', daFu.top_kinds[0].label === 'فيلا' && daFu.top_kinds[0].n === 6, daFu.top_kinds);
+  const e1 = await M.c.get(`/api/properties/${v1}/estimate`);
+  check('تقدير القيمة من مقارنات الحي الفعلية (5 فلل أخرى)', e1.status === 200 && e1.data.estimate.ok === true && e1.data.estimate.level === 'district' && e1.data.estimate.n === 5 && !e1.data.estimate.comparables.includes(v1), e1.data);
+  check('تقدير بلا عينة كافية = رفض صريح بلا رقم (فندق وحيد)', (await M.c.get(`/api/properties/${ht}/estimate`)).data.estimate.ok === false);
+
+  const mp = await M.c.get('/api/map');
+  const legPt = mp.data.offers?.find((o: any) => o.id === legacy);
+  check('الخريطة: كل العروض موضوعة، والعرض بلا إحداثيات على مركز حيه ومعلَّم تقريبيًا', mp.status === 200 && mp.data.offers.length === 11 && mp.data.unplaced_offers === 0 && legPt?.approx === true && Math.abs(legPt.lat - 21.6023) < 0.01, { n: mp.data.offers?.length, legPt });
+  check('الخريطة تبدأ بجدة وتتسع للنقاط، والطلبات على مراكز أحيائها', mp.data.start.south < 21.6 && mp.data.bounds.south <= 21.584 && mp.data.requests.length >= 5 && mp.data.unplaced_requests === 1);
+  check('طبقة الأسعار: فقاعة لكل حي فيه نقاط، والكثافة مطبّعة', mp.data.districts.length === 2 && Math.max(...mp.data.heat.cells.flat()) === 1);
+  const mapM = await M.c.get(`/api/map?request_id=${r2.data.request.id}`);
+  check('طبقة المطابقة على الخريطة = نتائج المطابقة نفسها', JSON.stringify(mapM.data.matching.matches.map((x: any) => x.property_id).sort()) === JSON.stringify([...ids2].sort()));
+  check('تصفية الخريطة بالعملية', (await M.c.get('/api/map?deal=rent')).data.offers.every((o: any) => o.deal === 'rent'));
+  const cmp = await M.c.get(`/api/compare?ids=${v1},${v2},${a1}`);
+  check('المقارنة: 3 عقارات بحقولها المنظمة وسعر المتر ووسيط الحي والتقدير', cmp.status === 200 && cmp.data.items.length === 3 && cmp.data.items[0].attributes.bedrooms === 5 && cmp.data.items[0].district_ppm.n === 5 && cmp.data.items[2].unit_price === 375 && cmp.data.items[0].estimate.ok === true);
+  check('المقارنة تتطلب 2 إلى 4 عقارات', (await M.c.get(`/api/compare?ids=${v1}`)).status === 400 && (await M.c.get(`/api/compare?ids=${v1},${v2},${v3},${v4},${vn}`)).status === 400);
+
+  check('عزل: المؤسسة B لا ترى طلبات M ولا مطابقاتها ولا تعدّلها', (await B.c.get(`/api/requests/${r1id}`)).status === 404 && (await B.c.get(`/api/requests/${r1id}/matches`)).status === 404 && (await B.c.patch(`/api/requests/${r1id}`, { budget_max: 1 })).status === 404 && (await B.c.del(`/api/requests/${r1id}`)).status === 404);
+  check('عزل: B لا تقارن ولا تقدّر عقارات M', (await B.c.get(`/api/compare?ids=${v1},${v2}`)).status === 404 && (await B.c.get(`/api/properties/${v1}/estimate`)).status === 404);
+  const piB = await B.c.get('/api/analytics/prices?market=sale&kind=villa');
+  check('عزل: تحليلات B لا تحسب عقارات M', piB.data.districts.find((d: any) => d.district_id === fu).summary.n !== sqlN && !(await B.c.get('/api/map')).data.offers.some((o: any) => o.id === v1));
+  check('الصلاحيات: المطّلع يقرأ التحليلات والطلبات ولا يضيف طلبًا، والطالب محجوب', (await viewer.c.get('/api/analytics/districts')).status === 200 && (await viewer.c.get('/api/requests')).status === 200 && (await viewer.c.post('/api/requests', r1In)).status === 403 && (await student.c.get('/api/analytics/prices')).status === 403 && (await student.c.get('/api/map')).status === 403);
+  check('حذف الطلب ناعم ويخرجه من القائمة والخريطة', (await M.c.del(`/api/requests/${r1id}`)).status === 200 && (await M.c.get(`/api/requests/${r1id}`)).status === 404 && (await val(`SELECT deleted_at IS NOT NULL FROM requests WHERE id=$1`, [r1id])) === true);
+  check('التدقيق سجّل إنشاء الطلب وتعديله وحذفه', Number(await val(`SELECT count(DISTINCT action) FROM audit_logs WHERE org_id=$1 AND action IN ('request.create','request.update','request.delete')`, [orgM])) === 3);
+
   section('13) الجلسات والخروج');
   const old = A.c.cookie;
   const lo = await A.c.post('/api/auth/logout');

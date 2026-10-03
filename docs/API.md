@@ -29,6 +29,24 @@
 | `POST /api/property-drafts` `{data}` | حفظ مسودة ناقصة؛ تُنظَّف المفاتيح وتُقص النصوص. 409 `draft_limit` بعد 50 |
 | `GET/PUT/DELETE /api/property-drafts/{id}` | قراءة / تحديث `{data}` / حذف. مسودة غيري = 404 |
 
+## الطلبات المنظمة والمطابقة (`request:read` / `request:write`)
+| المسار | الوصف |
+|---|---|
+| `GET /api/requests?page&pageSize` | طلبات المؤسسة |
+| `POST /api/requests` | `purpose (buy\|rent\|investment), kinds[], city\|city_id, budget_max` إلزامية؛ `district_ids[], district_importance (must\|preferred), budget_min, area_min, area_max, area_importance, rent_period (للاستئجار), criteria {field: {value, importance: must\|preferred\|any}}, notes`. يعيد الطلب مع `description` و`ignored` |
+| `POST /api/requests/preview` | نفس المدخلات بلا حفظ: `{description, ignored}` |
+| `GET/PATCH/DELETE /api/requests/{id}` | قراءة / تعديل (دمج ثم إعادة تحقق ووصف) / حذف ناعم |
+| `GET /api/requests/{id}/matches` | `{considered, total_eligible, excluded:{kind,deal,city,district,budget,area,criterion}, matches:[{property_id, score, reasons[], …}]}`، وتُحفظ لقطة في `matches` |
+
+## التحليلات والخريطة والمقارنة (`analytics:read`؛ بيانات المؤسسة وحدها)
+| المسار | الوصف |
+|---|---|
+| `GET /api/analytics/prices?market=sale\|rent&kind` | `{unit, overall, districts[], trend[]}`؛ كل ملخص `{n, sufficient, median, p25, p75, min, max}` والوسيط `null` إذا `n<3` |
+| `GET /api/analytics/districts` | لكل حي: العروض حسب العملية، الطلبات المفتوحة، `demand_supply`، وسيطا البيع والإيجار، أكثر الأنواع |
+| `GET /api/properties/{id}/estimate` | `{estimate: {ok:true, level, n, estimate, low, high, comparables} \| {ok:false, reason:"insufficient_data", n_district, n_city}}` |
+| `GET /api/map?deal&kind&request_id` | `{bounds, start, offers[], requests[], districts[], heat:{cols,rows,cells}, matching}` |
+| `GET /api/compare?ids=a,b[,c,d]` | 2 إلى 4 عقارات؛ 400 `need_2_to_4`، و404 لعقار مؤسسة أخرى |
+
 ## الاستيراد
 | المسار | الإجراء | الوصف |
 |---|---|---|

@@ -37,6 +37,8 @@ section.block{padding:56px 0}
 .stack{display:flex;flex-direction:column;gap:14px}
 .row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
 .field{display:flex;flex-direction:column;gap:6px;flex:1 1 200px;min-width:0}
+/* داخل حاوية عمودية لا يأخذ الحقل أساس 200px ارتفاعًا (فراغ ظاهر منذ Phase 1)؛ الأساس للصفوف الأفقية فقط */
+.stack>.field{flex:none}
 .field>span,legend{font-size:15px;font-weight:500}
 .input{min-height:46px;width:100%;border:1.5px solid #8FA3C0;border-radius:var(--radius);padding:8px 12px;font:inherit;background:#fff;color:var(--ink)}
 .check{display:flex;gap:10px;align-items:flex-start;font-size:15px}

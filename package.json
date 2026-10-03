@@ -9,7 +9,7 @@
     "start": "next start -p 3000",
     "migrate": "node scripts/migrate.mjs",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx scripts/test_otp_policy.ts && tsx scripts/test_import_rules.ts && tsx scripts/test_property_schema.ts && tsx scripts/test_rbac.ts && tsx scripts/test_auth_gate_coverage.ts && tsx scripts/test_package_integrity.ts",
+    "test:unit": "tsx scripts/test_otp_policy.ts && tsx scripts/test_import_rules.ts && tsx scripts/test_property_schema.ts && tsx scripts/test_requests_matching.ts && tsx scripts/test_rbac.ts && tsx scripts/test_auth_gate_coverage.ts && tsx scripts/test_package_integrity.ts",
     "test:integration": "tsx scripts/integration.ts"
   },
   "dependencies": {

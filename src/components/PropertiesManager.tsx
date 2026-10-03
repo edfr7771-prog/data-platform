@@ -11,6 +11,8 @@ type City = { id: string; name_ar: string };
 export function PropertiesManager({ cities, districts, canWrite, canDelete, canExport }: { cities: City[]; districts: District[]; canWrite: boolean; canDelete: boolean; canExport: boolean }) {
   const [items, setItems] = useState<Prop[]>([]); const [total, setTotal] = useState(0); const [page, setPage] = useState(1); const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  const [pick, setPick] = useState<string[]>([]);
+  const togglePick = (id: string) => setPick((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 4 ? p : [...p, id]));
   const pageSize = 25;
 
   const load = useCallback(async (p: number) => {
@@ -35,16 +37,20 @@ export function PropertiesManager({ cities, districts, canWrite, canDelete, canE
 
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 20 }}>العقارات ({fmt(total)})</h2>
+        <div className="row" style={{ gap: 8 }}>
+          {pick.length >= 2 ? <a className="btn sm" href={`/app/compare?ids=${pick.join(',')}`}>قارن المحدد ({pick.length})</a> : <span className="muted" style={{ fontSize: 14 }}>اختر 2 إلى 4 عقارات للمقارنة</span>}
         {canExport && <a className="btn line sm" style={{ color: 'var(--ink)', borderColor: '#8FA3C0' }} href="/api/properties/export">تصدير CSV</a>}
+        </div>
       </div>
       <div className="twrap" role="region" aria-label="جدول العقارات" tabIndex={0}>
         <table>
-          <thead><tr><th>النوع</th><th>الصفقة</th><th>الحي</th><th>المساحة م²</th><th>السعر</th><th>سعر المتر</th><th>العمر</th><th>الحالة</th>{canDelete && <th><span className="sr-only">إجراء</span></th>}</tr></thead>
+          <thead><tr><th><span className="sr-only">للمقارنة</span></th><th>النوع</th><th>الصفقة</th><th>الحي</th><th>المساحة م²</th><th>السعر</th><th>سعر المتر</th><th>العمر</th><th>الحالة</th>{canDelete && <th><span className="sr-only">إجراء</span></th>}</tr></thead>
           <tbody>
-            {loading && <tr><td colSpan={9} className="muted">جارٍ التحميل…</td></tr>}
-            {!loading && items.length === 0 && <tr><td colSpan={9} className="muted">لا عقارات بعد. أضف عقارًا أو استورد ملف CSV من صفحة الاستيراد.</td></tr>}
+            {loading && <tr><td colSpan={10} className="muted">جارٍ التحميل…</td></tr>}
+            {!loading && items.length === 0 && <tr><td colSpan={10} className="muted">لا عقارات بعد. أضف عقارًا أو استورد ملف CSV من صفحة الاستيراد.</td></tr>}
             {items.map((p) => (
               <tr key={p.id}>
+                <td><input type="checkbox" style={{ width: 20, height: 20 }} checked={pick.includes(p.id)} onChange={() => togglePick(p.id)} aria-label={`اختيار للمقارنة: ${(p.kind && getKind(p.kind)?.label) ?? TYPE_AR[p.type] ?? p.type} ${p.district_name ?? ''}`} /></td>
                 <td>{(p.kind && getKind(p.kind)?.label) ?? TYPE_AR[p.type] ?? p.type}{p.description && <details><summary className="muted" style={{ fontSize: 13 }}>الوصف</summary><p style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap', fontSize: 14 }}>{p.description}</p></details>}</td><td>{DEAL_AR[p.deal] ?? p.deal}</td><td>{p.district_name ?? p.location ?? '—'}</td>
                 <td dir="ltr">{fmt(p.area_sqm)}</td><td dir="ltr">{fmt(p.price)}</td><td dir="ltr">{fmt(p.price_per_sqm)}</td><td dir="ltr">{p.age_years ?? '—'}</td><td>{STATUS_AR[p.status] ?? p.status}</td>
                 {canDelete && <td><button className="btn danger sm" onClick={() => del(p.id)} aria-label={`حذف ${(p.kind && getKind(p.kind)?.label) ?? TYPE_AR[p.type] ?? p.type}`}>حذف</button></td>}
