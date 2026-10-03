@@ -12,10 +12,10 @@ import { normalizeArabic, parseNumber } from './arabic';
 import type { PType } from './property-rules';
 
 export type Deal = 'sale' | 'rent' | 'investment';
-export const DEALS: { value: Deal; label: string; phrase: string }[] = [
-  { value: 'sale', label: 'بيع', phrase: 'للبيع' },
-  { value: 'rent', label: 'إيجار', phrase: 'للإيجار' },
-  { value: 'investment', label: 'استثمار', phrase: 'للاستثمار' },
+export const DEALS: { value: Deal; label: string; phrase: string; aliases: string[] }[] = [
+  { value: 'sale', label: 'بيع', phrase: 'للبيع', aliases: ['sale', 'تمليك'] },
+  { value: 'rent', label: 'إيجار', phrase: 'للإيجار', aliases: ['rent', 'تاجير'] },
+  { value: 'investment', label: 'عرض استثماري', phrase: 'للاستثمار', aliases: ['investment', 'استثمار', 'استثماري'] },
 ];
 export type Issue = { code: string; field?: string; message: string };
 
@@ -83,6 +83,8 @@ export const FIELDS: Record<string, FieldDef> = Object.fromEntries(([
   { key: 'pumps_count', label: 'عدد المضخات', kind: 'int', group: 'specs', min: 1, max: 200 },
   { key: 'wells_count', label: 'عدد الآبار', kind: 'int', group: 'specs', min: 0, max: 500 },
   { key: 'trees_count', label: 'عدد الأشجار والنخيل', kind: 'int', group: 'specs', min: 0, max: 10_000_000 },
+  { key: 'ac_type', label: 'التكييف', kind: 'enum', group: 'specs', options: opts([['central', 'مركزي'], ['split', 'سبليت'], ['window', 'شباك'], ['desert', 'صحراوي'], ['none', 'بدون تكييف']]) },
+  { key: 'finishing', label: 'التشطيب', kind: 'enum', group: 'specs', options: opts([['super_deluxe', 'سوبر ديلوكس'], ['deluxe', 'ديلوكس'], ['standard', 'عادي'], ['shell', 'عظم (بلا تشطيب)']]) },
   { key: 'facility_use', label: 'نوع المنشأة', kind: 'enum', group: 'specs', options: opts([['hospital', 'مستشفى'], ['clinic', 'مجمع طبي/مستوصف'], ['school', 'مدرسة'], ['kindergarten', 'روضة'], ['institute', 'معهد/مركز تدريب'], ['university', 'كلية/جامعة']]) },
   // مرافق
   { key: 'elevator', label: 'مصعد', kind: 'bool', group: 'amenities' },
@@ -92,6 +94,7 @@ export const FIELDS: Record<string, FieldDef> = Object.fromEntries(([
   { key: 'pool', label: 'مسبح', kind: 'bool', group: 'amenities' },
   { key: 'maid_room', label: 'غرفة خادمة', kind: 'bool', group: 'amenities' },
   { key: 'driver_room', label: 'غرفة سائق', kind: 'bool', group: 'amenities' },
+  { key: 'features', label: 'المزايا', kind: 'multi', group: 'amenities', options: opts([['smart_home', 'منزل ذكي'], ['security', 'حراسة أمنية'], ['cctv', 'كاميرات مراقبة'], ['garden', 'حديقة'], ['sea_view', 'إطلالة بحرية'], ['balcony', 'شرفة'], ['storage_room', 'غرفة تخزين'], ['private_entrance', 'مدخل خاص'], ['water_tank', 'خزان مياه'], ['solar', 'طاقة شمسية'], ['gym', 'نادٍ رياضي'], ['kids_area', 'منطقة ألعاب أطفال']]) },
   { key: 'station_services', label: 'الخدمات', kind: 'multi', group: 'amenities', options: opts([['market', 'بقالة'], ['car_wash', 'مغسلة'], ['oil_change', 'تغيير زيوت'], ['restaurant', 'مطعم'], ['atm', 'صراف آلي'], ['mosque', 'مصلى'], ['restrooms', 'دورات مياه']]) },
   // تشغيلية
   { key: 'operating_status', label: 'حالة التشغيل', kind: 'enum', group: 'operations', options: OPERATING },
@@ -108,28 +111,30 @@ export const COMMON_ATTRS: Record<string, FieldDef> = {
 };
 
 const F = (key: string, required?: true | Deal[]): KindField => (required ? { key, required } : { key });
-const RES_UNIT = [F('bedrooms', true), F('living_rooms'), F('bathrooms', true), F('kitchen'), F('age_years'), F('furnished', ['rent'])];
+const RES_UNIT = [F('bedrooms', true), F('living_rooms'), F('bathrooms', true), F('kitchen'), F('age_years'), F('furnished', ['rent']), F('ac_type'), F('finishing')];
+/** مواصفات التشطيب والتكييف والمزايا للوحدات غير السكنية */
+const FINISH = [F('ac_type'), F('finishing')];
 const INCOME = [F('operating_status'), F('annual_income', ['investment']), F('occupancy_pct')];
 const kindsList: KindDef[] = [
   { key: 'land', label: 'أرض', category: 'land', base: 'land', usage: 'residential', fields: [F('land_use', true), F('facades'), F('facade_directions'), F('streets_count'), F('street_widths'), F('length_m'), F('width_m'), F('main_road')] },
-  { key: 'apartment', label: 'شقة', category: 'residential', base: 'apartment', usage: 'residential', fields: [F('floor_number', true), ...RES_UNIT, F('elevator'), F('parking_spaces'), F('maid_room')] },
-  { key: 'villa', label: 'فيلا', category: 'residential', base: 'villa', usage: 'residential', fields: [F('floors_count'), ...RES_UNIT, F('majlis_count'), F('entrances'), F('facades'), F('facade_directions'), F('street_widths'), F('annex'), F('yard'), F('pool'), F('maid_room'), F('driver_room'), F('elevator'), F('parking_spaces')] },
-  { key: 'duplex', label: 'دوبلكس', category: 'residential', base: 'villa', usage: 'residential', fields: [F('floors_count'), ...RES_UNIT, F('majlis_count'), F('entrances'), F('facades'), F('annex'), F('yard'), F('pool'), F('maid_room'), F('parking_spaces')] },
-  { key: 'floor', label: 'دور', category: 'residential', base: 'floor', usage: 'residential', fields: [F('floor_number', true), ...RES_UNIT, F('majlis_count'), F('entrances'), F('elevator'), F('parking_spaces'), F('maid_room')] },
-  { key: 'building', label: 'عمارة', category: 'residential', base: 'building', usage: 'residential', fields: [F('floors_count', true), F('units_count', true), F('shops_count'), F('age_years'), F('facades'), F('street_widths'), F('elevator'), F('parking_spaces'), ...INCOME] },
-  { key: 'tower', label: 'برج', category: 'commercial', base: 'building', usage: 'commercial', fields: [F('floors_count', true), F('units_count'), F('offices_count'), F('shops_count'), F('age_years'), F('elevator'), F('parking_spaces'), ...INCOME] },
-  { key: 'residential_complex', label: 'مجمع سكني', category: 'residential', base: 'building', usage: 'residential', fields: [F('buildings_count'), F('units_count', true), F('age_years'), F('pool'), F('parking_spaces'), ...INCOME] },
-  { key: 'rest_house', label: 'استراحة', category: 'residential', base: 'farm', usage: 'residential', fields: [F('majlis_count'), F('bedrooms'), F('bathrooms'), F('kitchen'), F('pool'), F('yard'), F('age_years'), F('furnished')] },
+  { key: 'apartment', label: 'شقة', category: 'residential', base: 'apartment', usage: 'residential', fields: [F('floor_number', true), ...RES_UNIT, F('elevator'), F('parking_spaces'), F('maid_room'), F('features')] },
+  { key: 'villa', label: 'فيلا', category: 'residential', base: 'villa', usage: 'residential', fields: [F('floors_count'), ...RES_UNIT, F('majlis_count'), F('entrances'), F('facades'), F('facade_directions'), F('street_widths'), F('annex'), F('yard'), F('pool'), F('maid_room'), F('driver_room'), F('elevator'), F('parking_spaces'), F('features')] },
+  { key: 'duplex', label: 'دوبلكس', category: 'residential', base: 'villa', usage: 'residential', fields: [F('floors_count'), ...RES_UNIT, F('majlis_count'), F('entrances'), F('facades'), F('annex'), F('yard'), F('pool'), F('maid_room'), F('parking_spaces'), F('features')] },
+  { key: 'floor', label: 'دور', category: 'residential', base: 'floor', usage: 'residential', fields: [F('floor_number', true), ...RES_UNIT, F('majlis_count'), F('entrances'), F('elevator'), F('parking_spaces'), F('maid_room'), F('features')] },
+  { key: 'building', label: 'عمارة', category: 'residential', base: 'building', usage: 'residential', fields: [F('floors_count', true), F('units_count', true), F('shops_count'), F('age_years'), F('facades'), F('street_widths'), F('elevator'), F('parking_spaces'), ...INCOME, ...FINISH] },
+  { key: 'tower', label: 'برج', category: 'commercial', base: 'building', usage: 'commercial', fields: [F('floors_count', true), F('units_count'), F('offices_count'), F('shops_count'), F('age_years'), F('elevator'), F('parking_spaces'), ...INCOME, ...FINISH] },
+  { key: 'residential_complex', label: 'مجمع سكني', category: 'residential', base: 'building', usage: 'residential', fields: [F('buildings_count'), F('units_count', true), F('age_years'), F('pool'), F('parking_spaces'), ...INCOME, ...FINISH] },
+  { key: 'rest_house', label: 'استراحة', category: 'residential', base: 'farm', usage: 'residential', fields: [F('majlis_count'), F('bedrooms'), F('bathrooms'), F('kitchen'), F('pool'), F('yard'), F('age_years'), F('furnished'), F('features')] },
   { key: 'farm', label: 'مزرعة', category: 'agricultural', base: 'farm', usage: 'residential', fields: [F('wells_count'), F('trees_count'), F('buildings_count'), F('main_road'), ...INCOME] },
   { key: 'warehouse', label: 'مستودع', category: 'industrial', base: 'warehouse', usage: 'commercial', fields: [F('covered_area_sqm'), F('ceiling_height_m'), F('loading_docks'), F('power_kva'), F('street_widths'), F('age_years'), F('operating_status'), F('annual_income', ['investment'])] },
-  { key: 'showroom', label: 'معرض', category: 'commercial', base: 'commercial', usage: 'commercial', fields: [F('floor_number'), F('frontage_m'), F('mezzanine'), F('bathrooms'), F('street_widths'), F('main_road'), F('parking_spaces'), F('age_years')] },
-  { key: 'shop', label: 'محل', category: 'commercial', base: 'shop', usage: 'commercial', fields: [F('frontage_m'), F('mezzanine'), F('bathrooms'), F('main_road'), F('age_years')] },
-  { key: 'office', label: 'مكتب', category: 'commercial', base: 'office', usage: 'commercial', fields: [F('floor_number'), F('rooms_count'), F('bathrooms'), F('furnished'), F('elevator'), F('parking_spaces'), F('age_years')] },
-  { key: 'commercial_building', label: 'مبنى تجاري', category: 'commercial', base: 'commercial', usage: 'commercial', fields: [F('floors_count', true), F('shops_count'), F('offices_count'), F('age_years'), F('elevator'), F('parking_spaces'), F('street_widths'), ...INCOME] },
+  { key: 'showroom', label: 'معرض', category: 'commercial', base: 'commercial', usage: 'commercial', fields: [F('floor_number'), F('frontage_m'), F('mezzanine'), F('bathrooms'), F('street_widths'), F('main_road'), F('parking_spaces'), F('age_years'), ...FINISH, F('features')] },
+  { key: 'shop', label: 'محل', category: 'commercial', base: 'shop', usage: 'commercial', fields: [F('frontage_m'), F('mezzanine'), F('bathrooms'), F('main_road'), F('age_years'), ...FINISH, F('features')] },
+  { key: 'office', label: 'مكتب', category: 'commercial', base: 'office', usage: 'commercial', fields: [F('floor_number'), F('rooms_count'), F('bathrooms'), F('furnished'), F('elevator'), F('parking_spaces'), F('age_years'), ...FINISH, F('features')] },
+  { key: 'commercial_building', label: 'مبنى تجاري', category: 'commercial', base: 'commercial', usage: 'commercial', fields: [F('floors_count', true), F('shops_count'), F('offices_count'), F('age_years'), F('elevator'), F('parking_spaces'), F('street_widths'), ...INCOME, ...FINISH] },
   { key: 'commercial_complex', label: 'مجمع تجاري', category: 'commercial', base: 'commercial', usage: 'commercial', fields: [F('buildings_count'), F('shops_count', true), F('offices_count'), F('parking_spaces'), F('age_years'), ...INCOME] },
-  { key: 'hotel', label: 'فندق', category: 'hospitality', base: 'commercial', usage: 'commercial', fields: [F('rooms_count', true), F('suites_count'), F('hotel_rating'), F('floors_count'), F('elevator'), F('parking_spaces'), F('age_years'), ...INCOME] },
-  { key: 'hotel_apartments', label: 'شقق فندقية', category: 'hospitality', base: 'commercial', usage: 'commercial', fields: [F('units_count', true), F('hotel_rating'), F('floors_count'), F('elevator'), F('parking_spaces'), F('age_years'), ...INCOME] },
-  { key: 'resort', label: 'منتجع', category: 'hospitality', base: 'commercial', usage: 'commercial', fields: [F('units_count'), F('rooms_count'), F('pool'), F('parking_spaces'), F('age_years'), ...INCOME] },
+  { key: 'hotel', label: 'فندق', category: 'hospitality', base: 'commercial', usage: 'commercial', fields: [F('rooms_count', true), F('suites_count'), F('hotel_rating'), F('floors_count'), F('elevator'), F('parking_spaces'), F('age_years'), ...INCOME, ...FINISH] },
+  { key: 'hotel_apartments', label: 'شقق فندقية', category: 'hospitality', base: 'commercial', usage: 'commercial', fields: [F('units_count', true), F('hotel_rating'), F('floors_count'), F('elevator'), F('parking_spaces'), F('age_years'), ...INCOME, ...FINISH] },
+  { key: 'resort', label: 'منتجع', category: 'hospitality', base: 'commercial', usage: 'commercial', fields: [F('units_count'), F('rooms_count'), F('pool'), F('parking_spaces'), F('age_years'), ...INCOME, ...FINISH] },
   { key: 'gas_station', label: 'محطة وقود', category: 'commercial', base: 'commercial', usage: 'commercial', fields: [F('pumps_count'), F('station_services'), F('street_widths'), F('main_road'), F('age_years'), ...INCOME] },
   { key: 'factory', label: 'مصنع', category: 'industrial', base: 'other', usage: 'commercial', fields: [F('covered_area_sqm'), F('ceiling_height_m'), F('power_kva'), F('loading_docks'), F('age_years'), ...INCOME] },
   { key: 'industrial', label: 'عقار صناعي', category: 'industrial', base: 'other', usage: 'commercial', fields: [F('covered_area_sqm'), F('ceiling_height_m'), F('power_kva'), F('street_widths'), F('age_years'), ...INCOME] },
@@ -183,7 +188,7 @@ export function parseKind(s: unknown): KindDef | null {
 }
 export const parseDealValue = (s: unknown): Deal | null => {
   const n = normalizeArabic(String(s ?? ''));
-  return (DEALS.find((d) => d.value === n || normalizeArabic(d.label) === n || normalizeArabic(d.phrase) === n)?.value) ?? null;
+  return (DEALS.find((d) => d.value === n || [d.label, d.phrase, ...d.aliases].some((x) => normalizeArabic(x) === n))?.value) ?? null;
 };
 
 export type ListingValue = {
@@ -192,7 +197,7 @@ export type ListingValue = {
   attributes: Record<string, number | string | boolean | string[] | number[]>;
 };
 
-const empty = (v: unknown) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0);
+export const empty = (v: unknown) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0);
 
 /** يحوّل قيمة حقل إلى صيغتها الموحدة، أو يعيد رسالة خطأ */
 export function coerceField(f: FieldDef, raw: unknown): { value?: ListingValue['attributes'][string]; error?: string } {
@@ -335,7 +340,7 @@ export function legacyColumns(v: ListingValue): { type: PType; usage: 'residenti
 // ——— توليد الوصف ———
 const n2 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 /** الرقم مع وحدته: «%» ملتصقة، و«سنة» بصيغة العدد العربية (سنة واحدة، سنتان، 3 سنوات، 11 سنة) */
-function withUnit(n: number, unit?: string): string {
+export function withUnit(n: number, unit?: string): string {
   if (!unit) return n2(n);
   if (unit === '%') return `${n2(n)}%`;
   if (unit === 'سنة' && Number.isInteger(n)) return n === 1 ? 'سنة واحدة' : n === 2 ? 'سنتان' : n >= 3 && n <= 10 ? `${n} سنوات` : `${n2(n)} سنة`;

@@ -8,7 +8,7 @@ type DraftSummary = { id: string; kind_label: string | null; deal: string | null
 
 const CATEGORY_AR: Record<string, string> = { residential: 'سكني', commercial: 'تجاري', hospitality: 'ضيافة', industrial: 'صناعي ولوجستي', land: 'أراضٍ', agricultural: 'زراعي', other: 'أخرى' };
 const STEPS = ['البيانات الأساسية', 'تفاصيل العقار', 'المعاينة والنشر'];
-const blank = (): EntryForm => ({ deal: '', kind: '', city_id: '', district_id: '', location: '', area_sqm: '', price: '', rent_period: '', ad_license_no: '', deed_no: '', notes: '', attributes: {} });
+const blank = (): EntryForm => ({ deal: '', kind: '', city_id: '', district_id: '', location: '', lat: '', lng: '', area_sqm: '', price: '', rent_period: '', ad_license_no: '', deed_no: '', notes: '', attributes: {} });
 const asText = (v: unknown) => (v === undefined || v === null ? '' : Array.isArray(v) ? v.join('، ') : String(v));
 
 /**
@@ -136,7 +136,7 @@ export function PropertyEntry({ cities, districts, onPublished }: { cities: City
 
   const byCategory = Object.entries(kinds().reduce<Record<string, { key: string; label: string }[]>>((acc, k) => { (acc[k.category] ??= []).push(k); return acc; }, {}));
   // أخطاء لا يظهر حقلها في الخطوة الحالية تُعرض في الملخص أسفل النموذج
-  const visible = new Set(step === 0 ? ['deal', 'kind', 'city', 'district', 'location', 'area_sqm', 'price', 'rent_period', 'ad_license_no', 'deed_no'] : step === 1 ? fields.map((x) => x.key) : ['notes']);
+  const visible = new Set(step === 0 ? ['deal', 'kind', 'city', 'district', 'location', 'lat', 'lng', 'area_sqm', 'price', 'rent_period', 'ad_license_no', 'deed_no'] : step === 1 ? fields.map((x) => x.key) : ['notes']);
   const stepErrs = errs.filter((e) => !visible.has(e.field ?? ''));
 
   return (
@@ -197,6 +197,10 @@ export function PropertyEntry({ cities, districts, onPublished }: { cities: City
             </label>
           </div>
           {input('location', 'الموقع / العنوان (اختياري)', f.location, (v) => set('location', v))}
+          <div className="row">
+            {input('lat', 'خط العرض (اختياري، للخريطة)', f.lat, (v) => set('lat', v), { numeric: true, hint: 'مثل 21.5433' })}
+            {input('lng', 'خط الطول (اختياري، للخريطة)', f.lng, (v) => set('lng', v), { numeric: true, hint: 'مثل 39.1728' })}
+          </div>
           <div className="row">
             {input('area_sqm', 'المساحة', f.area_sqm, (v) => set('area_sqm', v), { unit: 'م²', numeric: true, required: true })}
             {input('price', f.deal === 'rent' ? 'الإيجار' : 'السعر', f.price, (v) => set('price', v), { unit: 'ريال', numeric: true, required: true })}

@@ -22,10 +22,13 @@ export default async function Dashboard() {
         <div className="panel"><div className="muted">متوسط سعر المتر (بيع، من بياناتك)</div><b style={{ fontSize: 30 }}>{props?.ppm ? fmt(props.ppm) : '—'}</b><div className="muted" style={{ fontSize: 14 }}>{props?.ppm ? `المصدر: بياناتك المرفوعة · حجم العينة ${fmt(props.n)}` : 'لا بيانات كافية بعد'}</div></div>
         <div className="panel"><div className="muted">عمليات استيراد معتمدة</div><b style={{ fontSize: 30 }}>{fmt(imports?.n)}</b></div>
       </div>
-      <div className="note">التحليلات المتقدمة والمطابقة الذكية والخرائط في المراحل التالية. هذه المرحلة: إدارة العقارات واستيراد CSV بتدقيق وعزل بين المؤسسات.</div>
+      <div className="note">Phase 2: إدخال منظم للعروض والطلبات، ومطابقة ذكية من البيانات المنظمة، وذكاء سعري وتحليلات أحياء، وخريطة جدة، ومقارنة العقارات. كل الأرقام من بيانات مؤسستك فقط.</div>
       <div className="row">
         {can(u.org!.role, 'property:read') && <Link className="btn" href="/app/properties">العقارات</Link>}
         {can(u.org!.role, 'import:run') && <Link className="btn gold" href="/app/imports">استيراد ملف CSV</Link>}
+        {can(u.org!.role, 'request:read') && <Link className="btn" href="/app/requests">الطلبات والمطابقة</Link>}
+        {can(u.org!.role, 'analytics:read') && <Link className="btn" href="/app/analytics">التحليلات</Link>}
+        {can(u.org!.role, 'analytics:read') && <Link className="btn" href="/app/map">الخريطة</Link>}
       </div>
       {last.length > 0 && <div className="panel"><b>آخر الاستيرادات</b><ul style={{ margin: '8px 0 0', paddingInlineStart: 20 }}>{last.map((l, i) => <li key={i}>{l.filename}</li>)}</ul></div>}
     </div>
