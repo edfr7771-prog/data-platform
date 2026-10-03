@@ -1,6 +1,6 @@
 /** الصلاحيات: دالة نقية بلا اعتماديات، تُفرَض في الخلفية (route handlers والصفحات)، وإخفاء الزر وحده ليس حماية. */
 export type Role = 'super_admin' | 'org_admin' | 'data_analyst' | 'broker' | 'employee' | 'investor' | 'student' | 'viewer';
-export type Action = 'property:read' | 'property:write' | 'property:delete' | 'property:export' | 'import:run' | 'audit:read' | 'org:manage' | 'request:read' | 'request:write' | 'analytics:read';
+export type Action = 'property:read' | 'property:write' | 'property:delete' | 'property:export' | 'import:run' | 'audit:read' | 'org:manage' | 'request:read' | 'request:write' | 'analytics:read' | 'crm:read' | 'crm:write' | 'crm:manage';
 
 const MATRIX: Record<Action, Role[]> = {
   'property:read': ['org_admin', 'data_analyst', 'broker', 'employee', 'investor', 'viewer'],
@@ -14,6 +14,11 @@ const MATRIX: Record<Action, Role[]> = {
   'request:read': ['org_admin', 'data_analyst', 'broker', 'employee', 'investor', 'viewer'],
   'request:write': ['org_admin', 'data_analyst', 'broker', 'employee'],
   'analytics:read': ['org_admin', 'data_analyst', 'broker', 'employee', 'investor', 'viewer'],
+  // Phase 3: بيانات العملاء شخصية؛ القراءة لطاقم المنشأة (والمطّلع للقراءة فقط)، لا للمستثمر ولا للطالب
+  'crm:read': ['org_admin', 'data_analyst', 'broker', 'employee', 'viewer'],
+  'crm:write': ['org_admin', 'data_analyst', 'broker', 'employee'],
+  // إعداد القنوات والمراحل ودمج ملفات العملاء: مدير المنشأة فقط
+  'crm:manage': ['org_admin'],
 };
 
 /** super_admin دور منصة لا دور مؤسسة: لا يمنح وصولًا تلقائيًا لبيانات أي مؤسسة (أقل صلاحية). */

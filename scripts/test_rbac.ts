@@ -7,11 +7,14 @@ check('محلل البيانات: قراءة وكتابة وحذف وتصدير 
 check('الوسيط والموظف: قراءة وكتابة فقط (بلا حذف ولا استيراد ولا تصدير)', ['broker', 'employee'].every((r) => can(r as Role, 'property:read') && can(r as Role, 'property:write') && !can(r as Role, 'property:delete') && !can(r as Role, 'import:run') && !can(r as Role, 'property:export')));
 // Phase 2 أضاف إجراءات قراءة (الطلبات والتحليلات): القاعدة نفسها، فالمستثمر والمطّلع لا يملكان إلا إجراءات «:read»
 check('المستثمر والمطّلع: قراءة فقط (العقارات والطلبات والتحليلات)، ولا أي كتابة', ['investor', 'viewer'].every((r) => ['property:read', 'request:read', 'analytics:read'].every((a) => can(r as Role, a as never)) && ACTIONS.filter((a) => !a.endsWith(':read') || a === 'audit:read').every((a) => !can(r as Role, a))));
-check('Phase 2: الطلبات بصلاحيات العقارات نفسها (قراءة وكتابة)', ACTIONS.length === 10 && ORG_ROLES.every((r) => can(r, 'request:read') === can(r, 'property:read') && can(r, 'request:write') === can(r, 'property:write')));
+check('Phase 2: الطلبات بصلاحيات العقارات نفسها (قراءة وكتابة)', ACTIONS.length === 13 && ORG_ROLES.every((r) => can(r, 'request:read') === can(r, 'property:read') && can(r, 'request:write') === can(r, 'property:write')));
 check('Phase 2: الوسيط والموظف يكتبان الطلبات ويقرآن التحليلات، ولا تدقيق', ['broker', 'employee'].every((r) => can(r as Role, 'request:write') && can(r as Role, 'analytics:read') && !can(r as Role, 'audit:read')));
 check('الطالب لا يملك أي صلاحية على بيانات المؤسسة', ACTIONS.every((a) => !can('student', a)));
 check('مدير المنصة لا يملك وصولًا تلقائيًا لبيانات المؤسسات', ACTIONS.every((a) => !can('super_admin', a)));
 check('بلا دور = لا صلاحية', ACTIONS.every((a) => !can(null, a) && !can(undefined, a)));
 check('كل أدوار المؤسسة السبعة معرّفة بلا مدير المنصة', ORG_ROLES.length === 7 && !ORG_ROLES.includes('super_admin'));
+check('Phase 3: الكتابة في الـCRM لأدوار الكتابة نفسها في العقارات، والقراءة لا تتجاوز قراءة العقارات', ORG_ROLES.every((r) => can(r, 'crm:write') === can(r, 'property:write') && (!can(r, 'crm:read') || can(r, 'property:read'))));
+check('Phase 3: المستثمر والطالب لا يقرآن بيانات العملاء الشخصية، والمطّلع يقرأ ولا يكتب', !can('investor', 'crm:read') && !can('student', 'crm:read') && can('viewer', 'crm:read') && !can('viewer', 'crm:write'));
+check('Phase 3: إدارة القنوات والمراحل والدمج لمدير المنشأة وحده', ORG_ROLES.filter((r) => can(r, 'crm:manage')).join() === 'org_admin');
 console.log(`\nالنتيجة: ${pass} نجح، ${fail} فشل`);
 process.exit(fail ? 1 : 0);

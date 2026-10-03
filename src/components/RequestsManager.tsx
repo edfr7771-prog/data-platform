@@ -5,7 +5,7 @@ import { PURPOSES } from '@/lib/request-schema';
 import { DEAL_AR, fmt } from './labels';
 import { RequestEntry } from './RequestEntry';
 
-type Req = { id: string; purpose: string; kinds: string[]; description: string | null; notes: string | null; budget_max: number; status: string; created_at: string };
+type Req = { id: string; customer_id: string | null; customer_name: string | null; purpose: string; kinds: string[]; description: string | null; notes: string | null; budget_max: number; status: string; created_at: string };
 type Reason = { key: string; label: string; importance: string; status: 'met' | 'unmet' | 'unknown'; detail: string };
 type Match = { property_id: string; score: number; reasons: Reason[]; kind: string | null; type: string; deal: string; district_name: string | null; price: number; area_sqm: number; price_per_sqm: number | null };
 type Result = { considered: number; total_eligible: number; excluded: Record<string, number>; matches: Match[] };
@@ -13,7 +13,7 @@ const EXCL_AR: Record<string, string> = { kind: 'نوع مختلف', deal: 'عم
 const ST: Record<Reason['status'], [string, string]> = { met: ['متحقق', 'b-imported'], unmet: ['غير متحقق', 'b-invalid'], unknown: ['غير مذكور', 'b-duplicate'] };
 const line = { color: 'var(--ink)', borderColor: '#8FA3C0' } as const;
 
-export function RequestsManager({ cities, districts, canWrite }: { cities: { id: string; name_ar: string }[]; districts: { id: string; city_id: string; name_ar: string }[]; canWrite: boolean }) {
+export function RequestsManager({ cities, districts, canWrite, customer }: { cities: { id: string; name_ar: string }[]; districts: { id: string; city_id: string; name_ar: string }[]; canWrite: boolean; customer?: { id: string; name: string } | null }) {
   const [items, setItems] = useState<Req[]>([]); const [loading, setLoading] = useState(true); const [msg, setMsg] = useState('');
   const [open, setOpen] = useState<string | null>(null); const [res, setRes] = useState<Result | null>(null);
   const load = useCallback(async () => {
@@ -38,7 +38,8 @@ export function RequestsManager({ cities, districts, canWrite }: { cities: { id:
 
   return (
     <div className="stack" style={{ gap: 22 }}>
-      {canWrite && <RequestEntry cities={cities} districts={districts} onSaved={load} />}
+      {canWrite && customer && <div role="note" className="note ok">الطلب الجديد سيُربط بالعميل: <a href={`/app/contacts/${customer.id}`}>{customer.name}</a></div>}
+      {canWrite && <RequestEntry cities={cities} districts={districts} onSaved={load} customer={customer} />}
       {msg && <div role="alert" className="note err">{msg}</div>}
       <h2 style={{ fontSize: 20 }}>الطلبات ({fmt(items.length)})</h2>
       {loading && <p className="muted">جارٍ التحميل…</p>}
@@ -53,6 +54,7 @@ export function RequestsManager({ cities, districts, canWrite }: { cities: { id:
               {canWrite && <button type="button" className="btn line sm" style={{ color: 'var(--red)', borderColor: '#E4A5A0' }} onClick={() => del(r.id)}>حذف</button>}
             </div>
           </div>
+          {r.customer_id && <span className="muted" style={{ fontSize: 14 }}>العميل: <a href={`/app/contacts/${r.customer_id}`}>{r.customer_name ?? '—'}</a></span>}
           <details><summary className="muted">الوصف الكامل</summary><p style={{ whiteSpace: 'pre-wrap', margin: '6px 0 0' }}>{r.description}</p>{r.notes && <p className="muted" style={{ margin: '6px 0 0' }}>ملاحظات: {r.notes}</p>}</details>
           {open === r.id && (
             <div className="stack" aria-live="polite" style={{ gap: 10 }}>

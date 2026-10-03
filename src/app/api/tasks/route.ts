@@ -1,0 +1,16 @@
+import { fail, guard, json, readJson } from '@/lib/api';
+import { createTask, listTasks } from '@/lib/crm-tasks';
+
+/** المهام: view=today|overdue|upcoming|done ، assignee=me|all|<id> ، customer_id */
+export async function GET(req: Request) {
+  const g = await guard(req, 'crm:read'); if ('res' in g) return g.res;
+  const sp = new URL(req.url).searchParams;
+  return json({ ok: true, ...(await listTasks(g.ctx, { view: sp.get('view') ?? undefined, assignee: sp.get('assignee') ?? undefined, customer_id: sp.get('customer_id') ?? undefined })) });
+}
+
+export async function POST(req: Request) {
+  const g = await guard(req, 'crm:write'); if ('res' in g) return g.res;
+  const b = await readJson(req, 10_000); if (!b) return fail(400, 'bad_json');
+  const r = await createTask(g.ctx, b);
+  return r.ok ? json(r, 201) : fail(r.status, 'validation', { errors: r.errors });
+}

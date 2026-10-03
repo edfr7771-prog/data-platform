@@ -127,6 +127,9 @@ export async function createProperty(ctx: Ctx, raw: Record<string, unknown>): Pr
     await auditTx(c, { orgId: ctx.orgId, actorId: ctx.user.id, action: 'property.create', entity: 'property', entityId: id, ipHash: ctx.ipHash, meta: { type: clean.type, deal: clean.deal, kind: structured?.kind ?? null } });
     return (await c.query<Row>(`SELECT ${COLS} FROM properties p LEFT JOIN districts d ON d.id = p.district_id WHERE p.id=$1 AND p.org_id=$2`, [id, ctx.orgId])).rows[0];
   });
+  // Phase 3: مطابقة العرض الجديد مع الطلبات المفتوحة وتنبيه مسؤوليها (بعد الحفظ؛ فشلها لا يُفشل الإضافة)
+  const { onPropertyCreated } = await import('./crm-hooks');
+  await onPropertyCreated(ctx, id);
   return { ok: true, property: dto(row), warnings, fixes };
 }
 

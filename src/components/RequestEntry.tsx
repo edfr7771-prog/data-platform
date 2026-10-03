@@ -14,7 +14,7 @@ const line = { color: 'var(--ink)', borderColor: '#8FA3C0' } as const;
  * طلب عقاري منظم: الحقول المشتركة، ثم شروط حسب الأنواع المختارة مع «شرط إلزامي / مفضّل / لا يهم»،
  * ثم معاينة الوصف المولَّد وحفظه. الملاحظات الحرة منفصلة ولا تدخل الوصف ولا المطابقة.
  */
-export function RequestEntry({ cities, districts, onSaved }: { cities: City[]; districts: District[]; onSaved: () => void }) {
+export function RequestEntry({ cities, districts, onSaved, customer }: { cities: City[]; districts: District[]; onSaved: () => void; customer?: { id: string; name: string } | null }) {
   const [f, setF] = useState(() => ({ ...blank(), city_id: cities.length === 1 ? cities[0].id : '' }));
   const [step, setStep] = useState(0);
   const [errs, setErrs] = useState<Issue[]>([]);
@@ -27,7 +27,7 @@ export function RequestEntry({ cities, districts, onSaved }: { cities: City[]; d
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   async function post(path: string) {
-    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestPayload(f)) });
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(customer ? { ...requestPayload(f), customer_id: customer.id } : requestPayload(f)) });
     return r.json().catch(() => ({}));
   }
   async function go(next: number) {
@@ -46,7 +46,7 @@ export function RequestEntry({ cities, districts, onSaved }: { cities: City[]; d
   async function save() {
     setBusy(true); setMsg('');
     const d = await post('/api/requests'); setBusy(false);
-    if (d.ok) { setF({ ...blank(), city_id: f.city_id }); setStep(0); setPreview(null); setMsg('حُفظ الطلب. افتح «المطابقات» لرؤية العروض المناسبة.'); onSaved(); }
+    if (d.ok) { setF({ ...blank(), city_id: f.city_id }); setStep(0); setPreview(null); setMsg(customer ? `حُفظ الطلب ورُبط بملف ${customer.name}. افتح «المطابقات» لرؤية العروض المناسبة.` : 'حُفظ الطلب. افتح «المطابقات» لرؤية العروض المناسبة.'); onSaved(); }
     else if (d.errors) setErrs(d.errors); else setMsg(d.error === 'forbidden' ? 'لا تملك صلاحية إضافة الطلبات.' : 'تعذّر الحفظ.');
   }
 

@@ -54,6 +54,16 @@ export async function guardPublic(req: Request): Promise<{ ipHash: string | null
   return { ipHash };
 }
 
+/**
+ * webhooks القنوات (Meta وغيره): لا جلسة ولا Origin (خوادم لا متصفحات)، فالحماية بالتوقيع الإلزامي داخل المعالج
+ * (verifySignature)، مع حد معدل لكل عنوان. لا تُستعمل لأي نقطة يستدعيها متصفح.
+ */
+export async function guardWebhook(req: Request): Promise<{ ipHash: string | null } | { res: Response }> {
+  const ipHash = clientIpHash(req);
+  if (ipHash && limited(`wh:${ipHash}`, 300, 60_000)) return { res: fail(429, 'rate_limited') };
+  return { ipHash };
+}
+
 /** نقاط تقبل جلسة حساب ناقص (إكمال التوثيق والخروج). */
 export async function guardSession(req: Request): Promise<{ user: CurrentUser; ipHash: string | null } | { res: Response }> {
   if (MUTATING.has(req.method) && !originOk(req)) return { res: fail(403, 'bad_origin') };

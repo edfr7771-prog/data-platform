@@ -48,6 +48,10 @@ jobs:
       OTP_SMS_DELIVERY: console
       ADMIN_IDENTIFIERS: admin@test.local
       MAX_IMPORT_MB: '5'
+      # Phase 3: قيم اختبار فقط (ليست أسرارًا حقيقية) لاختبار التحقق من توقيع webhooks واتساب والبريد وتكرار الرسائل
+      WHATSAPP_APP_SECRET: ci-only-whatsapp-app-secret-not-real
+      WHATSAPP_VERIFY_TOKEN: ci-only-verify-token
+      EMAIL_INBOUND_SECRET: ci-only-email-inbound-secret-not-real
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

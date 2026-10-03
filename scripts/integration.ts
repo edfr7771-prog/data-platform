@@ -1,6 +1,7 @@
 // اختبار تكاملي: خادم حقيقي + PostgreSQL حقيقية. يشغّله: DATABASE_URL=... TEST_APP_URL=http://localhost:3000 npx tsx scripts/integration.ts
 import { Pool } from 'pg';
 import { normalizePhone } from '../src/lib/identifiers';
+import { createHmac } from 'node:crypto';
 
 const BASE = process.env.TEST_APP_URL ?? 'http://localhost:3000';
 const db = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -430,6 +431,231 @@ async function main() {
   check('الصلاحيات: المطّلع يقرأ التحليلات والطلبات ولا يضيف طلبًا، والطالب محجوب', (await viewer.c.get('/api/analytics/districts')).status === 200 && (await viewer.c.get('/api/requests')).status === 200 && (await viewer.c.post('/api/requests', r1In)).status === 403 && (await student.c.get('/api/analytics/prices')).status === 403 && (await student.c.get('/api/map')).status === 403);
   check('حذف الطلب ناعم ويخرجه من القائمة والخريطة', (await M.c.del(`/api/requests/${r1id}`)).status === 200 && (await M.c.get(`/api/requests/${r1id}`)).status === 404 && (await val(`SELECT deleted_at IS NOT NULL FROM requests WHERE id=$1`, [r1id])) === true);
   check('التدقيق سجّل إنشاء الطلب وتعديله وحذفه', Number(await val(`SELECT count(DISTINCT action) FROM audit_logs WHERE org_id=$1 AND action IN ('request.create','request.update','request.delete')`, [orgM])) === 3);
+
+  section('14) Phase 3: الـCRM (منشأة جديدة ببيانات معروفة): العملاء ومنع التكرار، الطلبات والمطابقة، المكالمات والمهام، الـPipeline، التنبيهات، القنوات، الاستيراد، العزل والصلاحيات');
+  {
+  const K = await register('crm'); const orgK = await orgOf(K);
+  const [E, V, I] = await Promise.all([register('crmemp'), register('crmview'), register('crminv')]);
+  await placeInOrg(E, orgK, 'employee'); await placeInOrg(V, orgK, 'viewer'); await placeInOrg(I, orgK, 'investor');
+  const uid = async (u: U) => (await val(`SELECT id FROM users WHERE email=$1`, [u.email])) as string;
+  const [kId, eId] = [await uid(K), await uid(E)];
+  const jdK = await val(`SELECT id FROM cities WHERE slug='jeddah'`) as string, fuK = await val(`SELECT id FROM districts WHERE slug='al-furusiyyah'`) as string;
+  const ryd = (await val(`INSERT INTO cities (slug, name_ar, name_en) VALUES ($1,'الرياض (اختبار)','Riyadh test') RETURNING id`, [`riyadh-${stamp}`])) as string;
+  const ph = (n: number) => `05${String(70_000_000 + (phoneSeq++ % 9_000_000) + n).slice(0, 8)}`;
+  const pA = ph(1), pX = ph(2), pN = ph(3);
+
+  // ——— العميل ومنع التكرار ———
+  const cA = await K.c.post('/api/contacts', { name: 'عبدالله المطيري', phone: pA, type: 'مشترٍ', city_id: jdK, owner_id: kId });
+  const aId = cA.data.contact?.id as string;
+  check('إنشاء عميل = 201 والجوال موحَّد بصيغة دولية والمسؤول محفوظ', cA.status === 201 && cA.data.contact.phone === normalizePhone(pA) && cA.data.contact.owner_id === kId && cA.data.contact.type === 'buyer', cA.data);
+  const dupFmt = await K.c.post('/api/contacts', { name: 'عبدالله', phone: `+966 ${pA.slice(1, 3)} ${pA.slice(3)}`, email: `abd-${stamp}@test.local` });
+  check('نفس الجوال بصيغة مختلفة = نفس العميل (200، deduplicated) ويُملأ البريد الفارغ فقط', dupFmt.status === 200 && dupFmt.data.deduplicated === true && dupFmt.data.contact.id === aId && dupFmt.data.matched_by.includes('phone') && dupFmt.data.contact.email === `abd-${stamp}@test.local` && dupFmt.data.contact.name === 'عبدالله المطيري', dupFmt.data);
+  check('البريد بحروف كبيرة يطابق العميل نفسه', (await K.c.post('/api/contacts', { name: 'أي اسم', email: `ABD-${stamp}@Test.Local` })).data.contact?.id === aId);
+  const cX = await K.c.post('/api/contacts', { name: 'خالد الزهراني', phone: pX, email: `kh-${stamp}@test.local`, city_id: ryd });
+  check('جوال لعميل وبريد لعميل آخر = 409 تعارض بلا دمج تلقائي', (await K.c.post('/api/contacts', { name: 'تعارض', phone: pA, email: `kh-${stamp}@test.local` })).data.error === 'identifier_conflict');
+  check('بلا جوال ولا بريد = 400، وجوال غير صالح = 400', (await K.c.post('/api/contacts', { name: 'بلا معرّف' })).status === 400 && (await K.c.post('/api/contacts', { name: 'غلط', phone: '12345' })).data.errors?.[0]?.code === 'phone_invalid');
+  const race = await Promise.all(Array.from({ length: 6 }, () => K.c.post('/api/contacts', { name: 'سباق متزامن', phone: pN })));
+  check('6 طلبات متزامنة بالجوال نفسه = ملف واحد فقط (قيد فريد + إعادة محاولة)', race.every((r) => r.data.ok) && Number(await val(`SELECT count(*) FROM customers WHERE org_id=$1 AND phone_norm=$2 AND deleted_at IS NULL`, [orgK, normalizePhone(pN)])) === 1 && new Set(race.map((r) => r.data.contact.id)).size === 1);
+  check('مصادر العميل محفوظة بقنواتها', Number(await val(`SELECT count(*) FROM customer_sources WHERE customer_id=$1`, [aId])) >= 1);
+  check('مسؤول من خارج المنشأة = 400', (await K.c.patch(`/api/contacts/${aId}`, { owner_id: await uid(B) })).data.errors?.[0]?.code === 'owner_not_member');
+  check('تغيير الجوال إلى جوال عميل آخر = 409', (await K.c.patch(`/api/contacts/${aId}`, { phone: pX })).status === 409);
+  const asg = await K.c.patch(`/api/contacts/${cX.data.contact.id}`, { owner_id: eId });
+  check('تغيير المسؤول: حدث في الخط الزمني وتنبيه للمسؤول الجديد وتدقيق', asg.status === 200 && Number(await val(`SELECT count(*) FROM customer_interactions WHERE customer_id=$1 AND kind='assigned'`, [cX.data.contact.id])) === 1 && Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='assigned'`, [eId])) === 1);
+
+  // ——— البحث والفلترة على كل المدن ———
+  const L = async (qs: string) => (await K.c.get(`/api/contacts?${qs}`)).data;
+  check('البحث بالاسم وبأرقام الجوال المحلية وبالبريد', (await L(`q=${encodeURIComponent('المطيري')}`)).items.some((x: any) => x.id === aId) && (await L(`q=${pA.slice(0, 7)}`)).items.some((x: any) => x.id === aId) && (await L(`q=kh-${stamp}`)).items.some((x: any) => x.id === cX.data.contact.id));
+  check('الفلترة بالمدينة تعمل لكل المدن (جدة والرياض)', (await L(`city_id=${jdK}`)).items.every((x: any) => x.city_id === jdK) && (await L(`city_id=${ryd}`)).items.map((x: any) => x.id).join() === cX.data.contact.id);
+  check('الفلترة بالمسؤول والحالة والمصدر', (await L(`owner_id=${eId}`)).items.map((x: any) => x.id).join() === cX.data.contact.id && (await L('status=inactive')).total === 0 && (await L('source=manual')).total >= 3);
+  check('مدخلات بحث خبيثة تُعامل نصًا بأمان', (await K.c.get(`/api/contacts?q=${encodeURIComponent("%' OR 1=1 --")}&city_id=${encodeURIComponent("x' OR '1'='1")}`)).data.total === 0);
+
+  // ——— ربط الطلبات بالعميل ———
+  const villaReq = { purpose: 'buy', kinds: ['villa'], city_id: jdK, district_ids: [fuK], budget_max: 3_000_000, criteria: { bedrooms: { value: 4, importance: 'must' }, ac_type: { value: ['central'], importance: 'preferred' } } };
+  const r1 = await K.c.post('/api/requests', { ...villaReq, customer_id: aId });
+  const r1id = r1.data.request?.id as string;
+  check('طلب شراء مرتبط بالعميل: customer_id محفوظ وشروطه منظمة (لا نص فقط)', r1.status === 201 && r1.data.request.customer_id === aId && r1.data.request.criteria.bedrooms.op === 'min' && r1.data.request.criteria.ac_type.importance === 'preferred', r1.data);
+  const r2 = await K.c.post('/api/requests', { purpose: 'rent', rent_period: 'yearly', kinds: ['apartment'], city_id: jdK, budget_max: 60_000, customer_id: aId });
+  const r3 = await K.c.post('/api/requests', { purpose: 'investment', kinds: ['building'], city_id: jdK, budget_max: 9_000_000, customer_id: aId });
+  check('العميل نفسه يملك طلب شراء واستئجار واستثمار معًا', r2.status === 201 && r3.status === 201 && Number(await val(`SELECT count(*) FROM requests WHERE customer_id=$1 AND deleted_at IS NULL`, [aId])) === 3);
+  check('كل طلب مرتبط = فرصة في الـPipeline وحدث «رُبط الطلب»', Number(await val(`SELECT count(*) FROM opportunities WHERE customer_id=$1`, [aId])) === 3 && Number(await val(`SELECT count(*) FROM customer_interactions WHERE customer_id=$1 AND kind='request_linked'`, [aId])) === 3);
+  check('ربط طلب بعميل منشأة أخرى = 400', (await B.c.post('/api/requests', { ...villaReq, city_id: jdK, district_ids: [], customer_id: aId })).status === 400);
+
+  // ——— المطابقة داخل الـCRM والتنبيهات ———
+  const offerE = await E.c.post('/api/properties', { deal: 'sale', kind: 'villa', city_id: jdK, district_id: fuK, area_sqm: 350, price: 2_600_000, attributes: { bedrooms: 5, bathrooms: 4, ac_type: 'central' } });
+  const vE = offerE.data.property?.id as string;
+  const mRow = (await sql<{ id: string; status: string; score: string }>(`SELECT id, status, score::text FROM matches WHERE request_id=$1 AND property_id=$2`, [r1id, vE]))[0];
+  check('عرض جديد مطابق (أضافه موظف): يُحفظ في المطابقات بحالة «جديد» تلقائيًا', !!mRow && mRow.status === 'new' && Number(mRow.score) === 100, mRow);
+  check('ويُنبَّه مسؤول العميل (لا الموظف الفاعل) مرة واحدة', Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='match_found' AND dedupe_key=$2`, [kId, `match:${r1id}:${vE}`])) === 1 && Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='match_found'`, [eId])) === 0);
+  await K.c.get(`/api/requests/${r1id}/matches`); await K.c.get(`/api/requests/${r1id}/matches`);
+  check('إعادة حساب المطابقة لا تكرر التنبيه (نفس الحدث)', Number(await val(`SELECT count(*) FROM notifications WHERE dedupe_key=$1`, [`match:${r1id}:${vE}`])) === 1);
+  const prof = await K.c.get(`/api/contacts/${aId}`);
+  const pm = prof.data.matches?.find((m: any) => m.property_id === vE);
+  check('ملف العميل يعرض العقار المطابق والدرجة والأسباب (إلزامي/مفضّل) والحالة', prof.status === 200 && pm?.score === '100.00' || pm?.score === 100 ? pm.reasons.some((x: any) => x.importance === 'must' && x.status === 'met') && pm.reasons.some((x: any) => x.importance === 'preferred') && pm.status === 'new' : false, pm);
+  const ms = await K.c.patch(`/api/matches/${mRow.id}`, { status: 'أُرسل للعميل' });
+  check('تغيير حالة المطابقة («أُرسل للعميل») يُسجَّل في الخط الزمني والتدقيق', ms.status === 200 && Number(await val(`SELECT count(*) FROM customer_interactions WHERE customer_id=$1 AND kind='match_status'`, [aId])) === 1 && Number(await val(`SELECT count(*) FROM audit_logs WHERE org_id=$1 AND action='match.status'`, [orgK])) === 1);
+  await K.c.get(`/api/requests/${r1id}/matches`);
+  check('إعادة حساب المطابقة تحافظ على حالة المتابعة (sent)', (await val(`SELECT status FROM matches WHERE id=$1`, [mRow.id])) === 'sent');
+  check('حالة مطابقة مجهولة = 400، ومطابقة منشأة أخرى = 404', (await K.c.patch(`/api/matches/${mRow.id}`, { status: 'طائر' })).status === 400 && (await B.c.patch(`/api/matches/${mRow.id}`, { status: 'sent' })).status === 404);
+  const exclReq = await K.c.post('/api/requests', { ...villaReq, criteria: { bedrooms: { value: 7, importance: 'must' } }, customer_id: aId });
+  const exclRes = await K.c.get(`/api/requests/${exclReq.data.request.id}/matches`);
+  check('أسباب الاستبعاد ظاهرة عند الاستبعاد (شرط إلزامي غير متحقق)', exclRes.data.excluded?.criterion >= 1 && exclRes.data.matches.length === 0);
+  const offerEarly = await E.c.post('/api/properties', { deal: 'rent', kind: 'apartment', city_id: jdK, district_id: fuK, area_sqm: 120, price: 50_000, rent_period: 'yearly', attributes: { floor_number: 1, bedrooms: 2, bathrooms: 2, furnished: 'unfurnished' } });
+  const r4 = await K.c.post('/api/requests', { purpose: 'rent', rent_period: 'yearly', kinds: ['apartment'], city_id: jdK, budget_max: 55_000, customer_id: cX.data.contact.id });
+  check('طلب جديد يناسب عرضًا قائمًا: يُنبَّه صاحب العرض مرة واحدة', r4.status === 201 && Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND dedupe_key=$2`, [eId, `offer_request:${offerEarly.data.property.id}:${r4.data.request.id}`])) === 1);
+
+  // ——— تسجيل مكالمة ———
+  const fut = new Date(Date.now() + 3 * 86_400_000).toISOString();
+  const call = await K.c.post(`/api/contacts/${aId}/calls`, { direction: 'out', outcome: 'answered', notes: 'مهتم بفيلا الفروسية', next_step: 'إرسال العروض', follow_up_at: fut });
+  const aRow = (await sql<{ last_contact_at: Date; next_follow_up_at: Date }>(`SELECT last_contact_at, next_follow_up_at FROM customers WHERE id=$1`, [aId]))[0];
+  check('تسجيل مكالمة = 201: آخر تواصل وموعد المتابعة يتحدثان، ومهمة متابعة للمسؤول', call.status === 201 && !!aRow.last_contact_at && new Date(aRow.next_follow_up_at).toISOString() === fut && (await val(`SELECT assignee_id FROM crm_tasks WHERE id=$1`, [call.data.task_id])) === kId, call.data);
+  check('المكالمة في الخط الزمني بنتيجتها واتجاهها، ومصدر «مكالمة» مسجل', (await val(`SELECT meta->>'outcome' FROM customer_interactions WHERE customer_id=$1 AND kind='call'`, [aId])) === 'answered' && (await val(`SELECT direction FROM customer_interactions WHERE customer_id=$1 AND kind='call'`, [aId])) === 'out' && Number(await val(`SELECT count(*) FROM customer_sources WHERE customer_id=$1 AND channel='call'`, [aId])) === 1);
+  check('مكالمة بلا نتيجة أو في المستقبل = 400', (await K.c.post(`/api/contacts/${aId}/calls`, { direction: 'in' })).status === 400 && (await K.c.post(`/api/contacts/${aId}/calls`, { direction: 'in', outcome: 'busy', occurred_at: fut })).status === 400);
+  check('ملاحظة تُضاف للخط الزمني', (await K.c.post(`/api/contacts/${aId}/notes`, { note: 'يفضّل التواصل مساءً' })).status === 201);
+  const tl = await K.c.get(`/api/contacts/${aId}/timeline`);
+  const times = tl.data.items.map((x: any) => new Date(x.occurred_at).getTime());
+  check('الخط الزمني مرتب زمنيًا (الأحدث أولًا) ويجمع الأحداث كلها', tl.status === 200 && times.every((t: number, i: number) => i === 0 || times[i - 1] >= t) && ['created', 'identified', 'request_linked', 'opportunity_created', 'match_status', 'call', 'task_created', 'note'].every((k) => tl.data.items.some((x: any) => x.kind === k)), tl.data.items.map((x: any) => x.kind));
+
+  // ——— المهام ———
+  const now = Date.now(), dayEndK = new Date(`${new Date(now + 3 * 3600_000).toISOString().slice(0, 10)}T00:00:00+03:00`).getTime() + 86_400_000;
+  const tOver = await E.c.post('/api/tasks', { title: 'اتصال متأخر', customer_id: aId, assignee_id: kId, due_at: new Date(now - 3600_000).toISOString(), priority: 'high' });
+  const tToday = await K.c.post('/api/tasks', { title: 'متابعة اليوم', customer_id: aId, due_at: new Date(now + Math.max(60_000, (dayEndK - now) / 2)).toISOString() });
+  const tUp = await K.c.post('/api/tasks', { title: 'معاينة قادمة', customer_id: aId, due_at: new Date(dayEndK + 86_400_000).toISOString(), priority: 'عاجلة' });
+  check('إنشاء مهام مرتبطة بالعميل = 201 (مع أولوية بالعربية)', [tOver, tToday, tUp].every((t) => t.status === 201) && tUp.data.task.priority === 'urgent');
+  check('الفاعل لا يُنبَّه على فعله: مهمة أنشأها المدير لنفسه = بلا تنبيه', Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND entity_id=$2`, [kId, tToday.data.task.id])) === 0 && Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND entity_id=$2`, [kId, tUp.data.task.id])) === 0);
+  check('مهمة أُسندت لغير منشئها: تنبيه للمكلّف', Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='task_assigned' AND entity_id=$2`, [kId, tOver.data.task.id])) === 1);
+  const V2 = async (v: string) => (await K.c.get(`/api/tasks?view=${v}`)).data;
+  check('عروض المهام: اليوم، المتأخرة، القادمة', (await V2('overdue')).items.some((t: any) => t.id === tOver.data.task.id) && (await V2('today')).items.some((t: any) => t.id === tToday.data.task.id) && (await V2('upcoming')).items.some((t: any) => t.id === tUp.data.task.id) && !(await V2('today')).items.some((t: any) => t.id === tOver.data.task.id));
+  const done = await K.c.patch(`/api/tasks/${tOver.data.task.id}`, { status: 'done' });
+  check('إنجاز المهمة: تاريخ الإنجاز، وتظهر في المكتملة، وحدث وتنبيه للمنشئ (الموظف) وتدقيق', done.status === 200 && !!done.data.task.completed_at && (await V2('done')).items.some((t: any) => t.id === tOver.data.task.id)
+    && Number(await val(`SELECT count(*) FROM customer_interactions WHERE customer_id=$1 AND kind='task_done'`, [aId])) === 1 && Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='task_status'`, [eId])) === 1 && Number(await val(`SELECT count(*) FROM audit_logs WHERE org_id=$1 AND action='task.complete'`, [orgK])) === 1);
+  check('مهمة بعميل من منشأة أخرى أو مكلّف من خارجها = 400', (await B.c.post('/api/tasks', { title: 'x', customer_id: aId })).status === 400 && (await K.c.post('/api/tasks', { title: 'x', assignee_id: await uid(B) })).status === 400);
+
+  // ——— الـPipeline ———
+  const bd = await K.c.get('/api/opportunities');
+  const oppA = bd.data.stages?.find((s: any) => s.key === 'new')?.opportunities.find((o: any) => o.customer_id === aId);
+  check('اللوحة: عشر مراحل افتراضية بالترتيب، والفرص في «عميل جديد»', bd.status === 200 && bd.data.stages.length === 10 && bd.data.stages[0].label === 'عميل جديد' && bd.data.stages[9].key === 'lost' && !!oppA);
+  await K.c.patch(`/api/opportunities/${oppA.id}`, { stage_key: 'contacted' });
+  const mv = await K.c.patch(`/api/opportunities/${oppA.id}`, { stage_key: 'offers_sent', note: 'أُرسلت 3 عروض' });
+  const hist = await K.c.get(`/api/opportunities/${oppA.id}`);
+  check('نقل الفرصة بين المراحل يحفظ تاريخ الانتقال كاملًا ويسجل حدثًا', mv.status === 200 && hist.data.history.length === 3 && hist.data.history.map((h: any) => h.to_label).join('|') === 'عميل جديد|تم التواصل|تم إرسال عروض' && Number(await val(`SELECT count(*) FROM customer_interactions WHERE customer_id=$1 AND kind='stage_change'`, [aId])) === 2);
+  const won = await K.c.patch(`/api/opportunities/${oppA.id}`, { stage_key: 'won' });
+  check('المرحلة «مكتمل» تغلق الفرصة كصفقة رابحة', won.data.status === 'won' && (await val(`SELECT closed_at IS NOT NULL FROM opportunities WHERE id=$1`, [oppA.id])) === true);
+  check('مرحلة مجهولة = 400، والمطّلع لا ينقل الفرص (403)', (await K.c.patch(`/api/opportunities/${oppA.id}`, { stage_key: 'nope' })).status === 400 && (await V.c.patch(`/api/opportunities/${oppA.id}`, { stage_key: 'new' })).status === 403);
+  const ns = await K.c.post('/api/crm/stages', { label: 'توقيع العقد' });
+  const stagesNow = (await K.c.get('/api/crm/stages')).data.items;
+  check('المراحل قابلة للتوسعة: مرحلة جديدة قبل مرحلتي الإغلاق (مدير المنشأة)', ns.status === 201 && stagesNow.findIndex((x: any) => x.label === 'توقيع العقد') === stagesNow.length - 3);
+  check('الموظف لا يعدّل المراحل (403)، وأرشفة مرحلة فيها فرص مفتوحة = 409', (await E.c.post('/api/crm/stages', { label: 'x' })).status === 403 && (await K.c.patch(`/api/crm/stages/${bd.data.stages[0].id}`, { archived: true })).status === 409);
+  check('إعادة تسمية مرحلة', (await K.c.patch(`/api/crm/stages/${ns.data.stage.id}`, { label: 'توقيع العقد والإفراغ' })).data.stage?.label === 'توقيع العقد والإفراغ');
+
+  // ——— التنبيهات والاستحقاق ———
+  await db.query(`UPDATE customers SET next_follow_up_at=now() - interval '1 hour' WHERE id=$1`, [aId]);
+  const sw1 = await K.c.post('/api/crm/sweep'); const sw2 = await K.c.post('/api/crm/sweep');
+  check('الاستحقاق: موعد متابعة حلّ = تنبيه، والتكرار لا يعيده', sw1.data.followups >= 1 && sw2.data.followups === 0 && sw2.data.overdue === 0, [sw1.data, sw2.data]);
+  await K.c.post('/api/tasks', { title: 'مهمة تتأخر', customer_id: aId, due_at: new Date(Date.now() - 60_000).toISOString() });
+  const sw3 = await K.c.post('/api/crm/sweep'), sw4 = await K.c.post('/api/crm/sweep');
+  check('مهمة متأخرة = تنبيه مرة واحدة', sw3.data.overdue === 1 && sw4.data.overdue === 0, [sw3.data, sw4.data]);
+  check('لا تنبيهين بالمفتاح نفسه لأي مستخدم (قيد فريد)', Number(await val(`SELECT count(*) FROM (SELECT user_id, dedupe_key FROM notifications WHERE org_id=$1 GROUP BY 1,2 HAVING count(*)>1) x`, [orgK])) === 0);
+  const nl = await K.c.get('/api/notifications');
+  const nMatch = nl.data.items?.find((n: any) => n.kind === 'match_found');
+  check('قائمة التنبيهات: بعدد غير المقروء ورابط مباشر للعميل', nl.status === 200 && nl.data.unread >= 3 && nMatch?.link === `/app/contacts/${aId}`);
+  check('تعليم تنبيه كمقروء، ولا يستطيع غيره تعليمه', (await E.c.post(`/api/notifications/${nMatch.id}/read`)).status === 404 && (await K.c.post(`/api/notifications/${nMatch.id}/read`)).status === 200 && (await val(`SELECT read_at IS NOT NULL FROM notifications WHERE id=$1`, [nMatch.id])) === true);
+  check('تعليم الكل كمقروء', (await K.c.post('/api/notifications/read-all')).data.ok && (await K.c.get('/api/notifications?unread=1')).data.unread === 0);
+
+  // ——— القنوات ———
+  const chan = async (u: U) => Object.fromEntries((await u.c.get('/api/channels')).data.items.map((x: any) => [x.key, x]));
+  let ch = await chan(K);
+  check('حالة صادقة قبل الربط: واتساب والبريد «تحتاج إعدادًا»، الويب «تحتاج إعدادًا»، المكالمات داخلية، والإرسال الخارجي معطل', ch.whatsapp.status === 'needs_configuration' && ch.email.status === 'needs_configuration' && ch.web.status === 'needs_configuration' && ch.manual_call.status === 'connected' && Object.values(ch).every((x: any) => x.outbound === 'disabled'), ch);
+  const waAcc = `9${Date.now()}`.slice(0, 15), waSecret = process.env.WHATSAPP_APP_SECRET ?? 'ci-only-whatsapp-app-secret-not-real', vTok = process.env.WHATSAPP_VERIFY_TOKEN ?? 'ci-only-verify-token';
+  check('ضبط حساب واتساب لمدير المنشأة فقط (الموظف 403، والقيمة غير الرقمية 400)', (await E.c.req('PUT', '/api/channels/whatsapp', { external_id: waAcc })).status === 403 && (await K.c.req('PUT', '/api/channels/whatsapp', { external_id: 'abc' })).status === 400 && (await K.c.req('PUT', '/api/channels/whatsapp', { external_id: waAcc })).status === 200);
+  check('لا تُعرض «متصلة» قبل ثبوت الاتصال (بعد ضبط الحساب فقط)', (await chan(K)).whatsapp.status === 'needs_configuration');
+  const wh = new Client(newIp());
+  check('مصافحة Meta: رمز خاطئ = 403، وصحيح = يعيد التحدي', (await wh.req('GET', `/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=abc123`, undefined, { origin: null })).status === 403 && (await wh.req('GET', `/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=${vTok}&hub.challenge=abc123`, undefined, { origin: null })).text === 'abc123');
+  const sign = (b: string, s2: string) => `sha256=${createHmac('sha256', s2).update(b).digest('hex')}`;
+  const waBody = (acc: string, id: string, from: string, name: string, text: string) => JSON.stringify({ object: 'whatsapp_business_account', entry: [{ id: 'WABA', changes: [{ field: 'messages', value: { messaging_product: 'whatsapp', metadata: { phone_number_id: acc }, contacts: [{ wa_id: from, profile: { name } }], messages: [{ id, from, timestamp: String(Math.floor(Date.now() / 1000)), type: 'text', text: { body: text } }] } }] }] });
+  const post = (path: string, body: string, sig: string | null, header = 'X-Hub-Signature-256') => wh.req('POST', path, undefined, { origin: null, raw: body, headers: { 'Content-Type': 'application/json', ...(sig ? { [header]: sig } : {}) } });
+  const newWa = `9665${String(phoneSeq++).slice(-8)}`;
+  const b1 = waBody(waAcc, `wamid.${stamp}.1`, newWa, 'فهد القحطاني', 'أبحث عن شقة للإيجار');
+  check('webhook بلا توقيع أو بتوقيع خاطئ = 401 ولا يُعالج', (await post('/api/webhooks/whatsapp', b1, null)).status === 401 && (await post('/api/webhooks/whatsapp', b1, sign(b1, 'wrong-secret'))).status === 401 && Number(await val(`SELECT count(*) FROM crm_messages WHERE external_id=$1`, [`wamid.${stamp}.1`])) === 0);
+  check('حمولة موقّعة لكن ليست JSON = 400', (await post('/api/webhooks/whatsapp', '{bad', sign('{bad', waSecret))).status === 400);
+  const w1 = await post('/api/webhooks/whatsapp', b1, sign(b1, waSecret));
+  const waC = (await sql<{ id: string; name: string; source: string }>(`SELECT id, name, source FROM customers WHERE org_id=$1 AND phone_norm=$2`, [orgK, `+${newWa}`]))[0];
+  check('رسالة واتساب موقّعة من رقم جديد: تُعالج، وينشأ عميل باسم المرسل ومصدر واتساب', w1.status === 200 && w1.data.processed === 1 && waC?.name === 'فهد القحطاني' && waC.source === 'whatsapp', w1.data);
+  check('الرسالة محفوظة ومرتبطة بالعميل وفي خطه الزمني، ومدير المنشأة منبَّه', Number(await val(`SELECT count(*) FROM crm_messages WHERE customer_id=$1 AND channel='whatsapp' AND direction='in'`, [waC.id])) === 1 && Number(await val(`SELECT count(*) FROM customer_interactions WHERE customer_id=$1 AND kind='message_in'`, [waC.id])) === 1 && Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='message_in'`, [kId])) === 1);
+  const w2 = await post('/api/webhooks/whatsapp', b1, sign(b1, waSecret));
+  check('إعادة إرسال الحدث نفسه (idempotency) = مكرر لا يُعالج ثانية', w2.data.duplicates === 1 && w2.data.processed === 0 && Number(await val(`SELECT count(*) FROM crm_messages WHERE external_id=$1`, [`wamid.${stamp}.1`])) === 1);
+  const bA = waBody(waAcc, `wamid.${stamp}.2`, normalizePhone(pA)!.slice(1), 'اسم مختلف', 'هل الفيلا متاحة؟');
+  const w3 = await post('/api/webhooks/whatsapp', bA, sign(bA, waSecret));
+  check('رسالة من جوال عميل موجود تُربط بملفه بلا عميل جديد ولا تغيير اسمه', w3.data.processed === 1 && Number(await val(`SELECT count(*) FROM crm_messages WHERE customer_id=$1 AND channel='whatsapp'`, [aId])) === 1 && (await val(`SELECT name FROM customers WHERE id=$1`, [aId])) === 'عبدالله المطيري');
+  const bU = waBody('000000000', `wamid.${stamp}.3`, newWa, 'x', 'y');
+  check('رقم واتساب رسمي غير مسجل لأي منشأة = يُرفض بلا إنشاء', (await post('/api/webhooks/whatsapp', bU, sign(bU, waSecret))).data.rejected === 1);
+  check('بعد أول رسالة موقّعة عولجت: واتساب «متصلة» فعليًا', (await chan(K)).whatsapp.status === 'connected');
+  const emAcc = `leads-${stamp}@inbound.test`, emSecret = process.env.EMAIL_INBOUND_SECRET ?? 'ci-only-email-inbound-secret-not-real';
+  await K.c.req('PUT', '/api/channels/email', { external_id: emAcc });
+  const eb = (id: string, from: string) => JSON.stringify({ message_id: id, from, to: emAcc, subject: 'استفسار عن عرض', text: 'أريد تفاصيل الفيلا' });
+  const e1 = eb(`<m1-${stamp}@x>`, `"عبدالله" <ABD-${stamp}@test.local>`);
+  const em1 = await post('/api/webhooks/email', e1, sign(e1, emSecret), 'X-Inbound-Signature');
+  check('بريد موقّع من بريد عميل موجود يُربط بملفه', em1.data.processed === 1 && Number(await val(`SELECT count(*) FROM crm_messages WHERE customer_id=$1 AND channel='email'`, [aId])) === 1, em1.data);
+  check('بريد بتوقيع خاطئ = 401، ومكرر = لا يُعالج ثانية', (await post('/api/webhooks/email', e1, sign(e1, 'x'), 'X-Inbound-Signature')).status === 401 && (await post('/api/webhooks/email', e1, sign(e1, emSecret), 'X-Inbound-Signature')).data.duplicates === 1);
+  const e2 = eb(`<m2-${stamp}@x>`, `new-${stamp}@sender.test`);
+  check('بريد من مرسل جديد ينشئ عميلًا مصدره البريد', (await post('/api/webhooks/email', e2, sign(e2, emSecret), 'X-Inbound-Signature')).data.processed === 1 && (await val(`SELECT source FROM customers WHERE org_id=$1 AND email_norm=$2`, [orgK, `new-${stamp}@sender.test`])) === 'email');
+  check('البريد «متصل» بعد أول رسالة موقّعة عولجت', (await chan(K)).email.status === 'connected');
+
+  // ——— استفسارات نموذج المنصة ———
+  await K.c.req('PUT', '/api/channels/web', {});
+  ch = await chan(K);
+  const fKey = String(ch.web.form_url ?? '').split('/enquire/')[1];
+  check('مفتاح نموذج الاستفسار: كامل لمدير المنشأة ومقنّع لغيره، والقناة «متصلة»', !!fKey && ch.web.status === 'connected' && String((await chan(E)).web.account).endsWith('…') && !(await chan(E)).web.form_url);
+  const pub = new Client(newIp());
+  const enqPhone = ph(9);
+  const q1 = await pub.post('/api/enquiries/public', { form_key: fKey, consent: true, name: 'منيرة السبيعي', phone: enqPhone, message: 'مهتمة بالفيلا', property_id: vE });
+  const enqC = (await sql<{ id: string; source: string }>(`SELECT id, source FROM customers WHERE org_id=$1 AND phone_norm=$2`, [orgK, normalizePhone(enqPhone)]))[0];
+  check('استفسار جديد: عميل جديد مصدره الموقع، وحدث مرتبط بالعقار، وفرصة جديدة', q1.status === 201 && q1.data.created_contact === true && q1.data.opportunity_created === true && enqC?.source === 'web' && (await val(`SELECT property_id FROM customer_interactions WHERE customer_id=$1 AND kind='enquiry'`, [enqC.id])) === vE, q1.data);
+  check('إرسال النموذج نفسه مرتين = لا استفسار ثانٍ ولا عميل ثانٍ', (await pub.post('/api/enquiries/public', { form_key: fKey, consent: true, name: 'منيرة السبيعي', phone: enqPhone, message: 'مهتمة بالفيلا', property_id: vE })).data.duplicate === true && Number(await val(`SELECT count(*) FROM crm_messages WHERE customer_id=$1`, [enqC.id])) === 1);
+  const q3 = await pub.post('/api/enquiries/public', { form_key: fKey, consent: true, name: 'منيرة', phone: `+966${enqPhone.slice(1)}`, message: 'سؤال آخر' });
+  check('استفسار ثانٍ من الجوال نفسه بصيغة أخرى = نفس العميل بلا فرصة مكررة', q3.status === 201 && q3.data.created_contact === false && q3.data.opportunity_created === false && Number(await val(`SELECT count(*) FROM customers WHERE org_id=$1 AND phone_norm=$2`, [orgK, normalizePhone(enqPhone)])) === 1);
+  check('مفتاح نموذج خاطئ = 404، وعقار منشأة أخرى = 400، وبلا موافقة = 400، ومن أصل غريب = 403', (await pub.post('/api/enquiries/public', { form_key: 'wrong-key-123456', consent: true, name: 'x y', phone: enqPhone, message: 'm' })).status === 404
+    && (await pub.post('/api/enquiries/public', { form_key: fKey, consent: true, name: 'x y', phone: enqPhone, message: 'm', property_id: pid })).status === 400 && (await pub.post('/api/enquiries/public', { form_key: fKey, name: 'x y', phone: enqPhone, message: 'm' })).status === 400
+    && (await pub.req('POST', '/api/enquiries/public', { form_key: fKey, consent: true, name: 'x y', phone: enqPhone, message: 'm' }, { origin: 'https://evil.example' })).status === 403);
+  check('صفحة النموذج العامة تعمل بالمفتاح الصحيح فقط', (await pub.get(`/enquire/${fKey}`)).status === 200 && (await pub.get('/enquire/not-a-real-key-000')).status === 404);
+
+  // ——— الاقتراحات والتكرار والدمج ———
+  const dupC = await K.c.post('/api/contacts', { name: 'عبد الله المطيري', phone: ph(7) });
+  const pr2 = await K.c.get(`/api/contacts/${aId}`);
+  check('الاقتراحات من قواعد صريحة (provider=rules) وتشمل احتمال التكرار بالاسم دون دمج', pr2.data.suggestions.provider === 'rules' && pr2.data.duplicates.some((d: any) => d.id === dupC.data.contact.id) && pr2.data.suggestions.items.some((x: any) => x.key === `dup:${dupC.data.contact.id}`) && Number(await val(`SELECT count(*) FROM customers WHERE id=$1 AND deleted_at IS NULL`, [dupC.data.contact.id])) === 1);
+  check('الاقتراحات تذكر مهمة متأخرة وموعد متابعة حلّ بأسبابهما', pr2.data.suggestions.items.some((x: any) => x.key.startsWith('overdue:')) && pr2.data.suggestions.items.some((x: any) => x.key === 'follow_up_due'));
+  check('الدمج اليدوي لمدير المنشأة فقط (الموظف 403)', (await E.c.post(`/api/contacts/${dupC.data.contact.id}/merge`, { into: aId })).status === 403);
+  await K.c.post(`/api/contacts/${dupC.data.contact.id}/notes`, { note: 'ملاحظة على الملف المكرر' });
+  const mg = await K.c.post(`/api/contacts/${dupC.data.contact.id}/merge`, { into: aId });
+  check('الدمج: ينقل الخط الزمني والمصادر، والملف المدموج يختفي ويشير للهدف، ويُدقَّق', mg.status === 200 && (await K.c.get(`/api/contacts/${dupC.data.contact.id}`)).status === 404 && (await val(`SELECT merged_into FROM customers WHERE id=$1`, [dupC.data.contact.id])) === aId
+    && Number(await val(`SELECT count(*) FROM customer_interactions WHERE customer_id=$1 AND note='ملاحظة على الملف المكرر'`, [aId])) === 1 && Number(await val(`SELECT count(*) FROM audit_logs WHERE org_id=$1 AND action='contact.merge'`, [orgK])) === 1);
+
+  // ——— استيراد العملاء CSV ———
+  const pImp = ph(11);
+    const csv = `الاسم,الجوال,البريد,المدينة\nعميل مستورد,${pImp},,جدة\nتحديث موجود,${pA},,\nمكرر في الملف,${pImp},,\n,${ph(12)},,\nبريد غلط,,not-an-email,\n`;
+  const fd = new FormData(); fd.append('file', new File([csv], 'contacts.csv', { type: 'text/csv' }));
+  const before = Number(await val(`SELECT count(*) FROM customers WHERE org_id=$1 AND deleted_at IS NULL`, [orgK]));
+  const imp = await K.c.req('POST', '/api/contacts/import', undefined, { raw: fd });
+  check('معاينة الاستيراد: جديد، تحديث، مكرر في الملف، غير صالح ×2، ولا إدخال قبل الموافقة', imp.status === 201 && imp.data.rows.map((r: any) => r.status).join() === 'new,update,duplicate,invalid,invalid' && Number(await val(`SELECT count(*) FROM customers WHERE org_id=$1 AND deleted_at IS NULL`, [orgK])) === before, imp.data);
+  const ap = await K.c.post(`/api/contacts/import/${imp.data.import.id}/approve`);
+  check('الموافقة: عميل جديد واحد، وتحديث واحد، و3 متجاوزة بأسبابها في التقرير (لا إدخال صامت)', ap.data.report?.created === 1 && ap.data.report.updated === 1 && ap.data.report.skipped === 3 && ap.data.report.problems.every((p: any) => p.issues.length > 0) && Number(await val(`SELECT count(*) FROM customers WHERE org_id=$1 AND deleted_at IS NULL`, [orgK])) === before + 1, ap.data);
+  check('الموافقة مرة ثانية = 409، والمطّلع لا يستورد', (await K.c.post(`/api/contacts/import/${imp.data.import.id}/approve`)).status === 409 && (await V.c.req('POST', '/api/contacts/import', undefined, { raw: fd })).status === 403);
+
+  // ——— العزل بين المنشآت والصلاحيات ———
+  check('المنشأة B لا ترى عميل K ولا خطه الزمني ولا تعدّله ولا تسجل له مكالمة ولا تدمجه', (await B.c.get(`/api/contacts/${aId}`)).status === 404 && (await B.c.get(`/api/contacts/${aId}/timeline`)).status === 404 && (await B.c.patch(`/api/contacts/${aId}`, { name: 'اختراق' })).status === 404
+    && (await B.c.post(`/api/contacts/${aId}/calls`, { direction: 'in', outcome: 'busy' })).status === 404 && (await B.c.post(`/api/contacts/${aId}/notes`, { note: 'x' })).status === 404 && (await val(`SELECT name FROM customers WHERE id=$1`, [aId])) === 'عبدالله المطيري');
+  check('قوائم B لا تحوي عملاء K ولا فرصه ولا مهامه ولا تنبيهاته ولا رسائله', !(await B.c.get('/api/contacts?pageSize=100')).data.items.some((x: any) => x.id === aId) && !JSON.stringify((await B.c.get('/api/opportunities')).data).includes(aId)
+    && !(await B.c.get('/api/tasks?view=done&assignee=all')).data.items.some((t: any) => t.customer_id === aId) && !(await B.c.get('/api/notifications')).data.items.some((n: any) => n.entity_id === aId));
+  check('B لا تعدّل مهمة K ولا تنقل فرصته ولا تقرأها', (await B.c.patch(`/api/tasks/${tToday.data.task.id}`, { status: 'done' })).status === 404 && (await B.c.patch(`/api/opportunities/${oppA.id}`, { stage_key: 'new' })).status === 404 && (await B.c.get(`/api/opportunities/${oppA.id}`)).status === 404);
+  check('رسائل واتساب لمنشأة K لا تظهر لـB حتى لو أرسلت من الرقم نفسه', !(await B.c.get(`/api/contacts?q=${newWa.slice(-7)}`)).data.items.length);
+  check('المطّلع: يقرأ العملاء والمهام واللوحة، ولا يضيف عميلًا ولا مكالمة ولا مهمة', (await V.c.get('/api/contacts')).status === 200 && (await V.c.get(`/api/contacts/${aId}`)).status === 200 && (await V.c.get('/api/opportunities')).status === 200
+    && (await V.c.post('/api/contacts', { name: 'x y', phone: ph(20) })).status === 403 && (await V.c.post(`/api/contacts/${aId}/calls`, { direction: 'in', outcome: 'busy' })).status === 403 && (await V.c.post('/api/tasks', { title: 'x' })).status === 403);
+  check('المستثمر لا يصل إلى بيانات العملاء الشخصية (403)', (await I.c.get('/api/contacts')).status === 403 && (await I.c.get(`/api/contacts/${aId}`)).status === 403 && (await I.c.get('/api/notifications')).status === 403);
+  check('الطالب محجوب عن الـCRM', (await student.c.get('/api/contacts')).status === 403);
+  check('webhooks لا تقبل جلسة بديلًا عن التوقيع (طلب بكوكي مستخدم بلا توقيع = 401)', (await K.c.req('POST', '/api/webhooks/whatsapp', undefined, { raw: b1, headers: { 'Content-Type': 'application/json' } })).status === 401);
+  const acts = (await sql<{ action: string }>(`SELECT DISTINCT action FROM audit_logs WHERE org_id=$1`, [orgK])).map((r) => r.action);
+  check('التدقيق شامل: إنشاء العميل، منع التكرار، المسؤول، المكالمة، الطلب، المهمة، المرحلة، المطابقة، الدمج، الاستيراد، القنوات', ['contact.create', 'contact.dedupe', 'contact.assign', 'contact.call', 'request.link', 'task.create', 'task.complete', 'opportunity.stage', 'match.status', 'contact.merge', 'contact.import', 'channel.configure', 'channel.message_in', 'channel.enquiry'].every((a) => acts.includes(a)), ['contact.create', 'contact.dedupe', 'contact.assign', 'contact.call', 'request.link', 'task.create', 'task.complete', 'opportunity.stage', 'match.status', 'contact.merge', 'contact.import', 'channel.configure', 'channel.message_in', 'channel.enquiry'].filter((a) => !acts.includes(a)));
+  check('لا أسرار في سجل التدقيق ولا في أحداث القنوات', Number(await val(`SELECT count(*) FROM audit_logs WHERE meta::text ILIKE '%secret%' OR meta::text ILIKE '%verify-token%'`)) === 0 && Number(await val(`SELECT count(*) FROM channel_events WHERE coalesce(reason,'') ILIKE '%secret%'`)) === 0);
+  }
 
   section('13) الجلسات والخروج');
   const old = A.c.cookie;
