@@ -13,7 +13,7 @@ export default async function PropertiesPage() {
   return (
     <div className="stack" style={{ gap: 18 }}>
       <h1 style={{ fontSize: 28 }}>العقارات</h1>
-      <PropertiesManager districts={geo.districts.map((d) => ({ id: d.id, name_ar: d.name_ar }))} canWrite={can(role, 'property:write')} canDelete={can(role, 'property:delete')} canExport={can(role, 'property:export')} />
+      <PropertiesManager cities={geo.cities.map((c) => ({ id: c.id, name_ar: c.name_ar }))} districts={geo.districts.map((d) => ({ id: d.id, city_id: d.city_id, name_ar: d.name_ar }))} canWrite={can(role, 'property:write')} canDelete={can(role, 'property:delete')} canExport={can(role, 'property:export')} />
     </div>
   );
 }

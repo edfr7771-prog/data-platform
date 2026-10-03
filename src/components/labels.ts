@@ -1,5 +1,5 @@
 export const TYPE_AR: Record<string, string> = { villa: 'فيلا', apartment: 'شقة', land: 'أرض', building: 'عمارة', commercial: 'تجاري', floor: 'دور', office: 'مكتب', shop: 'محل', warehouse: 'مستودع', farm: 'مزرعة', other: 'أخرى' };
-export const DEAL_AR: Record<string, string> = { sale: 'بيع', rent: 'إيجار' };
+export const DEAL_AR: Record<string, string> = { sale: 'بيع', rent: 'إيجار', investment: 'استثمار' };
 export const USAGE_AR: Record<string, string> = { residential: 'سكني', commercial: 'تجاري' };
 export const STATUS_AR: Record<string, string> = { active: 'متاح', sold: 'مباع', rented: 'مؤجر', withdrawn: 'مسحوب' };
 export const ROLE_AR: Record<string, string> = { org_admin: 'مدير المؤسسة', data_analyst: 'محلل بيانات', broker: 'وسيط', employee: 'موظف', investor: 'مستثمر', student: 'طالب', viewer: 'مطّلع' };

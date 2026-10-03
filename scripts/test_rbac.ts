@@ -4,8 +4,11 @@ const check = (name: string, cond: boolean) => { cond ? pass++ : fail++; console
 console.log('مصفوفة الصلاحيات (تُفرض في الخلفية)');
 check('مدير المؤسسة يملك كل الإجراءات', ACTIONS.every((a) => can('org_admin', a)));
 check('محلل البيانات: قراءة وكتابة وحذف وتصدير واستيراد، لا تدقيق ولا إدارة', can('data_analyst', 'property:delete') && can('data_analyst', 'import:run') && can('data_analyst', 'property:export') && !can('data_analyst', 'audit:read') && !can('data_analyst', 'org:manage'));
-check('الوسيط والموظف: قراءة وكتابة فقط', ['broker', 'employee'].every((r) => can(r as Role, 'property:read') && can(r as Role, 'property:write') && !can(r as Role, 'property:delete') && !can(r as Role, 'import:run') && !can(r as Role, 'property:export')));
-check('المستثمر والمطّلع: قراءة فقط', ['investor', 'viewer'].every((r) => can(r as Role, 'property:read') && ACTIONS.filter((a) => a !== 'property:read').every((a) => !can(r as Role, a))));
+check('الوسيط والموظف: قراءة وكتابة فقط (بلا حذف ولا استيراد ولا تصدير)', ['broker', 'employee'].every((r) => can(r as Role, 'property:read') && can(r as Role, 'property:write') && !can(r as Role, 'property:delete') && !can(r as Role, 'import:run') && !can(r as Role, 'property:export')));
+// Phase 2 أضاف إجراءات قراءة (الطلبات والتحليلات): القاعدة نفسها، فالمستثمر والمطّلع لا يملكان إلا إجراءات «:read»
+check('المستثمر والمطّلع: قراءة فقط (العقارات والطلبات والتحليلات)، ولا أي كتابة', ['investor', 'viewer'].every((r) => ['property:read', 'request:read', 'analytics:read'].every((a) => can(r as Role, a as never)) && ACTIONS.filter((a) => !a.endsWith(':read') || a === 'audit:read').every((a) => !can(r as Role, a))));
+check('Phase 2: الطلبات بصلاحيات العقارات نفسها (قراءة وكتابة)', ACTIONS.length === 10 && ORG_ROLES.every((r) => can(r, 'request:read') === can(r, 'property:read') && can(r, 'request:write') === can(r, 'property:write')));
+check('Phase 2: الوسيط والموظف يكتبان الطلبات ويقرآن التحليلات، ولا تدقيق', ['broker', 'employee'].every((r) => can(r as Role, 'request:write') && can(r as Role, 'analytics:read') && !can(r as Role, 'audit:read')));
 check('الطالب لا يملك أي صلاحية على بيانات المؤسسة', ACTIONS.every((a) => !can('student', a)));
 check('مدير المنصة لا يملك وصولًا تلقائيًا لبيانات المؤسسات', ACTIONS.every((a) => !can('super_admin', a)));
 check('بلا دور = لا صلاحية', ACTIONS.every((a) => !can(null, a) && !can(undefined, a)));
