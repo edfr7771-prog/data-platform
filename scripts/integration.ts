@@ -521,6 +521,7 @@ async function main() {
   const tToday = await K.c.post('/api/tasks', { title: 'متابعة اليوم', customer_id: aId, due_at: new Date(now + Math.max(60_000, (dayEndK - now) / 2)).toISOString() });
   const tUp = await K.c.post('/api/tasks', { title: 'معاينة قادمة', customer_id: aId, due_at: new Date(dayEndK + 86_400_000).toISOString(), priority: 'عاجلة' });
   check('إنشاء مهام مرتبطة بالعميل = 201 (مع أولوية بالعربية)', [tOver, tToday, tUp].every((t) => t.status === 201) && tUp.data.task.priority === 'urgent');
+  check('الفاعل لا يُنبَّه على فعله: مهمة أنشأها المدير لنفسه = بلا تنبيه', Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND entity_id=$2`, [kId, tToday.data.task.id])) === 0 && Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND entity_id=$2`, [kId, tUp.data.task.id])) === 0);
   check('مهمة أُسندت لغير منشئها: تنبيه للمكلّف', Number(await val(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='task_assigned' AND entity_id=$2`, [kId, tOver.data.task.id])) === 1);
   const V2 = async (v: string) => (await K.c.get(`/api/tasks?view=${v}`)).data;
   check('عروض المهام: اليوم، المتأخرة، القادمة', (await V2('overdue')).items.some((t: any) => t.id === tOver.data.task.id) && (await V2('today')).items.some((t: any) => t.id === tToday.data.task.id) && (await V2('upcoming')).items.some((t: any) => t.id === tUp.data.task.id) && !(await V2('today')).items.some((t: any) => t.id === tOver.data.task.id));
