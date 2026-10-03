@@ -14,7 +14,7 @@ check('الجوال السعودي بصيغه المختلفة يتوحد إلى
 check('الرقم الدولي يُقبل بصيغة صريحة (+ أو 00) فقط', normalizeContactPhone('+201001234567') === '+201001234567' && normalizeContactPhone('00201001234567') === '+201001234567' && normalizeContactPhone('201001234567') === null);
 check('رقم غير صالح أو فارغ = null (لا تخمين)', [null, '', 'abc', '0123', '12345678', '+12'].every((p) => normalizeContactPhone(p) === null));
 check('البريد يتوحد بحروف صغيرة ومسافات محذوفة، والغلط = null', normalizeContactEmail('  Ali@Example.COM ') === 'ali@example.com' && normalizeContactEmail('ali@') === null && normalizeContactEmail('') === null);
-check('مفتاح الاسم يوحّد الهمزات والتاء والمسافات (للاقتراح فقط)', nameKey('أحمد  عبدالله.') === nameKey('احمد عبدالله') && nameKey('فاطمة') === nameKey('فاطمه'));
+check('مفتاح الاسم يوحّد الهمزات والتاء والمسافات (للاقتراح فقط)', nameKey('أحمد  عبدالله.') === nameKey('احمد عبدالله') && nameKey('فاطمة') === nameKey('فاطمه') && nameKey('عبد الله') === nameKey('عبدالله') && nameKey('سعد') !== nameKey('سعود'));
 
 console.log('2) التحقق من العميل');
 const ok = validateContact({ name: '  محمد   العتيبي ', phone: '0551112233', email: 'M@x.com', type: 'مشترٍ', source: 'whatsapp' });

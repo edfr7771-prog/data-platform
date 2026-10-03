@@ -19,8 +19,8 @@ export function normalizeContactPhone(raw: unknown): string | null {
   return m && (d.startsWith('+') || d.startsWith('00')) ? `+${m[1]}` : null;
 }
 export const normalizeContactEmail = (raw: unknown): string | null => (String(raw ?? '').trim() ? normalizeEmail(String(raw)) : null);
-/** مفتاح الاسم لاقتراح «احتمال تكرار» فقط (لا دمج تلقائي بالاسم أبدًا) */
-export const nameKey = (s: unknown) => normalizeArabic(String(s ?? '')).replace(/[^\p{L}\p{N} ]/gu, '').replace(/\s+/g, ' ').trim();
+/** مفتاح الاسم لاقتراح «احتمال تكرار» فقط (لا دمج تلقائي بالاسم أبدًا). المسافات تُحذف: «عبد الله» = «عبدالله» */
+export const nameKey = (s: unknown) => normalizeArabic(String(s ?? '')).replace(/[^\p{L}\p{N}]/gu, '');
 
 export const CUSTOMER_TYPES = [
   { value: 'buyer', label: 'مشترٍ' }, { value: 'seller', label: 'بائع' }, { value: 'owner', label: 'مالك' }, { value: 'tenant', label: 'مستأجر' },
