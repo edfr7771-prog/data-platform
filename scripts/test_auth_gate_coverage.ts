@@ -20,10 +20,20 @@ check(`وُجد ${routes.length} معالج مسار`, routes.length >= 12);
 for (const f of routes) {
   const s = read(f), r = rel(f);
   if (PUBLIC_ROUTES.has(r)) { check(`${r} عام بلا جلسة (مُعلَن)`, !/getCurrentUser|getCompleteUser/.test(s)); continue; }
+  // Phase 3: webhooks القنوات (خوادم لا متصفحات): حارس webhook وحده، والتوثيق بالتوقيع الإلزامي في مكتبة القنوات
+  if (r.startsWith('app/api/webhooks/')) {
+    check(`${r} webhook يمر بـguardWebhook (حد معدل) ولا يستعمل جلسة`, /\bguardWebhook\(req/.test(s) && !/getCurrentUser|getCompleteUser/.test(s));
+    check(`${r} webhook يمرر ترويسة التوقيع إلى مكتبة القنوات`, /headers\.get\('x-(hub|inbound)-signature(-256)?'\)/.test(s) && /from '@\/lib\/crm-channels'/.test(s));
+    continue;
+  }
+  check(`${r} لا يستعمل guardWebhook (مخصص لـwebhooks الموقّعة فقط)`, !/guardWebhook/.test(s));
   check(`${r} يمر بأحد الحراس (guard / guardSession / guardPublic)`, /\bguard(Public|Session)?\(req/.test(s));
   check(`${r} لا يستعمل getCurrentUser مباشرة`, !/\bgetCurrentUser\b/.test(s), 'استعمل guard');
   if (!DIRECT_DB_ROUTES.has(r)) check(`${r} لا يستعلم قاعدة البيانات مباشرة (الوصول عبر مكتبات مقيَّدة بالمؤسسة)`, !/from '@\/lib\/db'/.test(s));
 }
+
+const chLib = read(path.join(ROOT, 'lib/crm-channels.ts'));
+check('مكتبة القنوات تتحقق من التوقيع في webhook واتساب والبريد (verifySignature مرتين على الأقل) وترفض بلا سر (503)', (chLib.match(/verifySignature\(rawBody/g) ?? []).length >= 2 && (chLib.match(/channel_disabled/g) ?? []).length >= 2);
 
 console.log('الصفحات المحمية (src/app/app)');
 const pages = files.filter((f) => /^app\/app\/.*(page|layout)\.tsx$/.test(rel(f)));
