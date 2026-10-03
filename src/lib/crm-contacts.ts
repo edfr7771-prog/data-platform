@@ -10,6 +10,7 @@ import type { Ctx } from './api';
 
 type Db = Pick<PoolClient, 'query'>;
 type Row = Record<string, unknown>;
+const CHANNEL_NOTE_AR: Record<string, string> = { manual: 'الإضافة اليدوية', web: 'نموذج المنصة', whatsapp: 'واتساب', email: 'البريد', call: 'مكالمة', import: 'الاستيراد' };
 const FIELDS = `c.id, c.name, c.phone_norm AS phone, c.email_norm AS email, c.type, c.source, c.status, c.city_id, ci.name_ar AS city_name, c.district_ids, c.owner_id,
   u.full_name AS owner_name, c.notes, c.last_contact_at, c.next_follow_up_at, c.created_at, c.updated_at`;
 const FROM = `customers c LEFT JOIN cities ci ON ci.id=c.city_id LEFT JOIN users u ON u.id=c.owner_id`;
@@ -42,7 +43,7 @@ export async function upsertContact(c: Db, orgId: string, actorId: string | null
     const sets = Object.keys(patch);
     if (sets.length) await c.query(`UPDATE customers SET ${sets.map((k, i) => `${k}=$${i + 3}`).join(', ')}, updated_at=now() WHERE id=$1 AND org_id=$2`, [d.id, orgId, ...sets.map((k) => patch[k])]);
     await recordSource(c, orgId, d.id, channel, identifier);
-    await addEvent(c, { orgId, customerId: d.id, kind: 'identified', actorId, channel, note: `وصل العميل عبر ${channel}، وطابق ملفه الحالي بـ${d.by.map((b) => (b === 'phone' ? 'الجوال' : 'البريد')).join(' و')}`, meta: { by: d.by, filled: sets, conflicts } });
+    await addEvent(c, { orgId, customerId: d.id, kind: 'identified', actorId, channel, note: `وصل العميل عبر ${CHANNEL_NOTE_AR[channel] ?? channel}، وطابق ملفه الحالي بـ${d.by.map((b) => (b === 'phone' ? 'الجوال' : 'البريد')).join(' و')}`, meta: { by: d.by, filled: sets, conflicts } });
     await auditTx(c as PoolClient, { orgId, actorId, action: 'contact.dedupe', entity: 'customer', entityId: d.id, ipHash, meta: { channel, by: d.by, filled: sets, conflicts } });
     return { ok: true, id: d.id, created: false, matched_by: d.by, conflicts };
   }

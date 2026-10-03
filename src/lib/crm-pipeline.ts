@@ -136,7 +136,7 @@ export async function setMatchStatus(ctx: Ctx, id: string, raw: Row) {
     if (m.status === status) return { ok: true as const, unchanged: true };
     await c.query(`UPDATE matches SET status=$3, status_updated_at=now(), status_by=$4, updated_at=now() WHERE id=$1 AND org_id=$2`, [id, ctx.orgId, status, ctx.user.id]);
     const label = MATCH_STATUSES.find((s) => s.value === status)!.label;
-    if (m.customer_id) await addEvent(c, { orgId: ctx.orgId, customerId: m.customer_id as string, kind: 'match_status', actorId: ctx.user.id, requestId: m.request_id as string, propertyId: m.property_id as string, note: `مطابقة (${m.score}/100): ${label}`, meta: { match_id: id, from: m.status, to: status } });
+    if (m.customer_id) await addEvent(c, { orgId: ctx.orgId, customerId: m.customer_id as string, kind: 'match_status', actorId: ctx.user.id, requestId: m.request_id as string, propertyId: m.property_id as string, note: `مطابقة (${Math.round(Number(m.score))}/100): ${label}`, meta: { match_id: id, from: m.status, to: status } });
     await auditTx(c, { orgId: ctx.orgId, actorId: ctx.user.id, action: 'match.status', entity: 'match', entityId: id, ipHash: ctx.ipHash, meta: { from: m.status, to: status } });
     return { ok: true as const };
   });

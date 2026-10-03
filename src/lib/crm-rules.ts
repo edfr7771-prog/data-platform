@@ -194,7 +194,9 @@ function nextStep(s: SuggestionInput): Suggestion | null {
   const st = s.stage?.key, mk = (title: string, reason: string, label: string, target: string): Suggestion => ({ key: 'next_step', priority: 50, title, reason, action: { label, target } });
   if (!s.stage) return s.has_request ? null : mk('أنشئ طلبًا منظمًا للعميل', 'لا طلب مرتبطًا بالعميل بعد، والمطابقة تحتاج طلبًا', 'طلب جديد', 'new_request');
   if (s.stage.kind !== 'open') return null;
-  if (st === 'new') return mk('سجّل أول تواصل مع العميل', `المرحلة «${s.stage.label}» بلا تواصل بعد`, 'سجّل مكالمة', 'call');
+  if (st === 'new') return s.last_contact_at
+    ? mk('انقل الفرصة إلى «تم التواصل»', `سُجّل تواصل ${riyadhDay(s.last_contact_at)} والفرصة ما زالت في «${s.stage.label}»`, 'غيّر المرحلة', 'stage')
+    : mk('سجّل أول تواصل مع العميل', `المرحلة «${s.stage.label}» بلا تواصل بعد`, 'سجّل مكالمة', 'call');
   if (st === 'contacted' && !s.has_request) return mk('أهّل العميل بطلب منظم', 'تم التواصل ولا يوجد طلب بشروط منظمة', 'طلب جديد', 'new_request');
   if ((st === 'qualified' || st === 'matching') && s.new_matches.count > 0) return mk('أرسل العروض المطابقة للعميل', `المرحلة «${s.stage.label}» وتوجد مطابقات جديدة`, 'راجع المطابقات', 'matches');
   if (st === 'offers_sent') return mk('تابع رد العميل أو حدّد معاينة', 'أُرسلت العروض ولم تُسجل معاينة', 'أنشئ مهمة', 'task');

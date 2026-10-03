@@ -60,6 +60,7 @@ check('احتمال تكرار يُقترح للمراجعة ولا يُدمج �
 check('«لا يُتواصل معه» يوقف كل الاقتراحات', (() => { const s = suggestionsFor(sIn({ status: 'do_not_contact', new_matches: { count: 5, request_title: null } })); return s.length === 1 && s[0].key === 'do_not_contact'; })());
 check('بلا طلب ولا فرصة = اقترح طلبًا منظمًا', suggestionsFor(sIn({ stage: null, has_request: false })).some((x) => x.action.target === 'new_request'));
 check('الفرصة المغلقة لا تُقترح لها متابعة قديمة', !suggestionsFor(sIn({ stage: { key: 'won', label: 'مكتمل', kind: 'won' }, last_contact_at: new Date('2026-01-01T00:00:00Z') })).some((x) => x.key === 'stale'));
+check('مرحلة «جديد» بلا تواصل = «سجّل أول تواصل»، وبعد تسجيل تواصل = «انقل إلى تم التواصل» (لا اقتراح متناقض)', (() => { const st = { key: 'new', label: 'عميل جديد', kind: 'open' }; const a = suggestionsFor(sIn({ stage: st, last_contact_at: null, created_at: new Date('2026-10-02T00:00:00Z') })).find((x) => x.key === 'next_step'); const b = suggestionsFor(sIn({ stage: st })).find((x) => x.key === 'next_step'); return a?.action.target === 'call' && a.title.includes('أول تواصل') && b?.action.target === 'stage' && !b.title.includes('أول تواصل'); })());
 check('الترتيب بالأولوية (الأهم أولًا)', (() => { const s = suggestionsFor(sIn({ new_matches: { count: 1, request_title: null }, duplicates: [{ id: 'x', name: 'a', reason: 'r' }], last_contact_at: new Date('2026-09-01T00:00:00Z') })); return s.every((x, i) => i === 0 || s[i - 1].priority >= x.priority); })());
 
 console.log('7) استيراد العملاء (معاينة)');

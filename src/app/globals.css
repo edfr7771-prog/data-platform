@@ -78,3 +78,23 @@ fieldset.fs{border:0;margin:0;padding:0;min-width:0}
 .preview h3{font-size:19px;margin-bottom:10px}
 .preview h4{font-size:16px;margin:14px 0 4px}
 .preview ul{margin:0;padding-inline-start:20px}
+/* Phase 3: الـCRM (بطاقات متجاوبة بدل الجداول على الجوال) */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.card h3{font-size:17px;margin:0}
+.card a.title{color:var(--ink);font-weight:600;text-decoration:none;font-size:17px}
+.card a.title:hover{text-decoration:underline}
+.meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:14px;color:var(--muted)}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tabs button,.tabs a{min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid #8FA3C0;background:#fff;color:var(--ink);font:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.tabs [aria-selected=true],.tabs [aria-current=page]{background:var(--navy2);border-color:var(--navy2);color:#fff}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,1fr);gap:12px;overflow-x:auto;padding-bottom:8px}
+.board .col{background:#EEF3F9;border-radius:var(--radius);padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.board .col h3{font-size:15px;margin:0;display:flex;justify-content:space-between}
+@media (max-width:760px){.board{grid-auto-flow:row;grid-auto-columns:auto;overflow-x:visible}}
+.count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--red);color:#fff;font-size:12px;font-weight:600}
+.timeline{list-style:none;margin:0;padding:0;border-inline-start:2px solid var(--line)}
+.timeline li{position:relative;padding:4px 16px 12px;margin-inline-start:0}
+.timeline li::before{content:'';position:absolute;inset-inline-start:-7px;top:10px;width:12px;height:12px;border-radius:50%;background:var(--sky-ink);border:2px solid #fff}
+.st-connected{color:#0A5C3E;border-color:#9AD3BB;background:#EEF9F4}.st-not_connected{color:#4A5D78;border-color:#B8C4D6;background:#EFF2F7}
+.st-needs_configuration{color:#8A3F0E;border-color:#EBB78F;background:#FDF3EA}.st-error{color:#8F1D16;border-color:#E4A5A0;background:#FDF1F0}
